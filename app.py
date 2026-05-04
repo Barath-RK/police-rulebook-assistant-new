@@ -2,7 +2,7 @@ import streamlit as st
 import tempfile
 import os
 import requests
-from typing import List, Dict, Any
+from typing import List, Dict
 
 # LangChain imports
 from langchain_community.document_loaders import PyPDFLoader
@@ -39,12 +39,9 @@ st.markdown("""
         font-size: 1rem;
         line-height: 1.6;
     }
-    .doc-list {
-        background-color: #f8f9fa;
-        padding: 0.5rem;
-        border-radius: 0.5rem;
-        margin: 0.2rem 0;
-        font-size: 0.8rem;
+    /* Hide default sidebar elements if any */
+    [data-testid="stSidebarNav"] {
+        display: none;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -53,7 +50,7 @@ st.markdown("""
 st.markdown("""
 <div class="main-header">
     <h1>👮 Police Rulebook Assistant</h1>
-    <p>Comprehensive RAG Assistant for Police SOPs, Complaint Manuals, Citizen Procedures & Cyber Laws</p>
+    <p>Smart RAG Assistant for Police SOPs, Complaint Manuals & Citizen Procedures</p>
 </div>
 """, unsafe_allow_html=True)
 
@@ -66,29 +63,21 @@ if "documents_loaded" not in st.session_state:
     st.session_state.documents_loaded = False
 if "embeddings" not in st.session_state:
     st.session_state.embeddings = None
-if "pdf_list" not in st.session_state:
-    st.session_state.pdf_list = []
-if "total_chunks" not in st.session_state:
-    st.session_state.total_chunks = 0
 
 # ============================================================
 # GITHUB CONFIGURATION
 # ============================================================
 
-# Your GitHub repository info
 GITHUB_USERNAME = "Barath-RK"
 GITHUB_REPO = "police-rulebook-assistant-new"
 GITHUB_BRANCH = "main"
 DOCUMENTS_FOLDER = "Documents"
 
-# GitHub API URL to list files
 GITHUB_API_URL = f"https://api.github.com/repos/{GITHUB_USERNAME}/{GITHUB_REPO}/contents/{DOCUMENTS_FOLDER}"
-
-# Raw content URL base
 RAW_BASE_URL = f"https://raw.githubusercontent.com/{GITHUB_USERNAME}/{GITHUB_REPO}/{GITHUB_BRANCH}/{DOCUMENTS_FOLDER}/"
 
 # ============================================================
-# FUNCTIONS TO GET PDFS FROM GITHUB
+# FUNCTIONS
 # ============================================================
 
 def get_pdf_files_from_github():
@@ -102,14 +91,10 @@ def get_pdf_files_from_github():
                 if file['name'].lower().endswith('.pdf'):
                     pdf_files.append({
                         'name': file['name'],
-                        'url': file['download_url'],
-                        'raw_url': RAW_BASE_URL + file['name'],
-                        'size': file.get('size', 0)
+                        'raw_url': RAW_BASE_URL + file['name']
                     })
             return pdf_files
-        else:
-            st.error(f"Cannot access GitHub folder. Status: {response.status_code}")
-            return []
+        return []
     except Exception as e:
         st.error(f"Error accessing GitHub: {e}")
         return []
@@ -127,118 +112,72 @@ def load_pdf_from_url(url: str, filename: str) -> List:
         loader = PyPDFLoader(tmp_path)
         documents = loader.load()
         
-        # Add metadata
         for doc in documents:
             doc.metadata["source"] = filename
-            doc.metadata["filename"] = filename
         
         os.unlink(tmp_path)
         return documents
     except Exception as e:
-        st.warning(f"Could not load {filename}: {str(e)[:100]}")
         return []
 
 def load_all_documents():
     """Load all PDFs from GitHub Documents folder"""
     all_chunks = []
-    loaded_files = []
     
-    # Get list of PDFs
     pdf_files = get_pdf_files_from_github()
     
     if not pdf_files:
-        st.error("No PDF files found in 'Documents' folder. Please add PDFs to your GitHub repository.")
         return [], []
     
-    # Initialize embeddings
     if st.session_state.embeddings is None:
-        with st.spinner("Loading AI model..."):
-            st.session_state.embeddings = HuggingFaceEmbeddings(
-                model_name="sentence-transformers/all-MiniLM-L6-v2"
-            )
+        st.session_state.embeddings = HuggingFaceEmbeddings(
+            model_name="sentence-transformers/all-MiniLM-L6-v2"
+        )
     
-    # Text splitter
     splitter = RecursiveCharacterTextSplitter(
         chunk_size=500,
         chunk_overlap=50,
         separators=["\n\n", "\n", ". ", " ", ""]
     )
     
-    # Progress bar
-    progress_bar = st.progress(0)
-    status_text = st.empty()
-    
-    for i, pdf_info in enumerate(pdf_files):
-        status_text.text(f"Loading: {pdf_info['name']}...")
-        
+    for pdf_info in pdf_files:
         documents = load_pdf_from_url(pdf_info['raw_url'], pdf_info['name'])
         
         if documents:
             chunks = splitter.split_documents(documents)
             for j, chunk in enumerate(chunks):
                 chunk.metadata["chunk_id"] = j
-                chunk.metadata["total_chunks"] = len(chunks)
-                chunk.metadata["file_size"] = pdf_info['size']
             all_chunks.extend(chunks)
-            loaded_files.append(pdf_info['name'])
-            st.success(f"✅ Loaded {pdf_info['name']} ({len(chunks)} chunks)")
-        
-        progress_bar.progress((i + 1) / len(pdf_files))
     
-    status_text.empty()
-    progress_bar.empty()
-    
-    return all_chunks, loaded_files
+    return all_chunks, [f['name'] for f in pdf_files]
 
 # ============================================================
 # LOAD DOCUMENTS ON STARTUP
 # ============================================================
 
 if not st.session_state.documents_loaded:
-    with st.spinner("Loading police documents from GitHub..."):
+    with st.spinner("📚 Loading police documents..."):
         chunks, loaded_files = load_all_documents()
         
         if chunks:
             st.session_state.vector_store = FAISS.from_documents(chunks, st.session_state.embeddings)
             st.session_state.documents_loaded = True
-            st.session_state.pdf_list = loaded_files
-            st.session_state.total_chunks = len(chunks)
-            st.success(f"✅ Loaded {len(loaded_files)} documents ({len(chunks)} chunks)")
         else:
-            st.error("No documents could be loaded. Please check your GitHub 'Documents' folder.")
+            st.warning("No PDFs found in 'Documents' folder. Please add PDF files.")
 
 # ============================================================
-# SIDEBAR - Show loaded documents
+# SIDEBAR - COMPLETELY EMPTY (No content)
 # ============================================================
 
+# Empty sidebar - nothing shown
 with st.sidebar:
-    st.markdown("## 📚 Knowledge Base")
-    
-    if st.session_state.documents_loaded:
-        st.success(f"✅ {len(st.session_state.pdf_list)} documents loaded")
-        st.caption(f"📊 Total chunks: {st.session_state.total_chunks}")
-        
-        st.markdown("### 📄 Documents Available:")
-        for doc in st.session_state.pdf_list:
-            st.markdown(f"- {doc}")
-    else:
-        st.warning("⚠️ Loading documents...")
-    
-    st.divider()
-    
-    st.markdown("## 💡 Sample Questions")
-    st.caption("Try asking about:")
-    st.markdown("- How to file a police complaint?")
-    st.markdown("- What are the traffic violation procedures?")
-    st.markdown("- Tell me about citizen rights")
-    st.markdown("- Cyber crime reporting process")
-    st.markdown("- Missing person report procedure")
+    pass  # Intentionally empty - no content displayed
 
 # ============================================================
 # SEARCH FUNCTIONS
 # ============================================================
 
-def search_documents(query: str, top_k: int = 5) -> List[Dict]:
+def search_documents(query: str, top_k: int = 5) -> List:
     """Search for relevant documents"""
     if not st.session_state.vector_store:
         return []
@@ -257,7 +196,6 @@ def generate_detailed_answer(query: str, relevant_docs) -> tuple:
     
     important_words = [w for w in query_words if w not in stop_words and len(w) > 2]
     
-    # Score documents
     scored_docs = []
     for doc in relevant_docs:
         content = doc.page_content
@@ -277,17 +215,14 @@ def generate_detailed_answer(query: str, relevant_docs) -> tuple:
     if not high_relevance:
         return None, []
     
-    # Build detailed answer
     answer_parts = []
     sources = []
     
     for doc in high_relevance[:3]:
         source = doc.metadata.get("source", "Unknown")
         sources.append(source)
-        
         content = doc.page_content
         
-        # Extract best sentences
         sentences = content.split('. ')
         best_sentences = []
         
@@ -301,7 +236,6 @@ def generate_detailed_answer(query: str, relevant_docs) -> tuple:
         else:
             answer_parts.append(content[:400])
     
-    # Combine answer
     if answer_parts:
         seen = set()
         unique_parts = []
@@ -377,8 +311,4 @@ if prompt:
 
 # Footer
 st.markdown("---")
-col1, col2 = st.columns(2)
-with col1:
-    st.caption("Project PRJ-005 | Police Rulebook Assistant")
-with col2:
-    st.caption("Barath R K PDKV | 411623149004")
+st.caption("Project PRJ-005 | Police Rulebook Assistant | Barath R K PDKV | 411623149004")
