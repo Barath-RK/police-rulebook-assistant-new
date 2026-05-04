@@ -35,6 +35,16 @@ st.markdown("""
         padding-top: 0.5rem;
         border-top: 1px solid #eee;
     }
+    .answer-text {
+        font-size: 1rem;
+        line-height: 1.6;
+    }
+    .detailed-answer {
+        background-color: #f8f9fa;
+        padding: 1rem;
+        border-radius: 0.5rem;
+        margin: 0.5rem 0;
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -42,7 +52,7 @@ st.markdown("""
 st.markdown("""
 <div class="main-header">
     <h1>👮 Police Rulebook Assistant</h1>
-    <p>Smart RAG Assistant for Police SOPs, Complaint Manuals & Citizen Procedures</p>
+    <p>Comprehensive RAG Assistant for Police SOPs, Complaint Manuals & Citizen Procedures</p>
 </div>
 """, unsafe_allow_html=True)
 
@@ -57,6 +67,10 @@ if "embeddings" not in st.session_state:
     st.session_state.embeddings = None
 if "force_reload" not in st.session_state:
     st.session_state.force_reload = False
+if "all_chunks" not in st.session_state:
+    st.session_state.all_chunks = []
+if "pdf_list" not in st.session_state:
+    st.session_state.pdf_list = []
 
 # ============================================================
 # GITHUB CONFIGURATION
@@ -131,8 +145,8 @@ def load_all_documents(show_progress=True):
             )
     
     splitter = RecursiveCharacterTextSplitter(
-        chunk_size=500,
-        chunk_overlap=50,
+        chunk_size=800,
+        chunk_overlap=100,
         separators=["\n\n", "\n", ". ", " ", ""]
     )
     
@@ -151,6 +165,7 @@ def load_all_documents(show_progress=True):
             for j, chunk in enumerate(chunks):
                 chunk.metadata["chunk_id"] = j
                 chunk.metadata["total_chunks"] = len(chunks)
+                chunk.metadata["doc_name"] = pdf_info['name']
             all_chunks.extend(chunks)
             loaded_files.append(pdf_info['name'])
         
@@ -164,51 +179,11 @@ def load_all_documents(show_progress=True):
     return all_chunks, loaded_files
 
 # ============================================================
-# SIDEBAR - With Refresh Button
+# ENHANCED SEARCH FUNCTIONS - DEEPER & MORE DETAILED
 # ============================================================
 
-with st.sidebar:
-    st.markdown("### 📚 Police Rulebook")
-    
-    # Refresh button to reload documents
-    if st.button("🔄 Refresh Knowledge Base", type="primary", use_container_width=True):
-        st.session_state.force_reload = True
-        st.session_state.documents_loaded = False
-        st.session_state.vector_store = None
-        st.rerun()
-    
-    st.divider()
-    
-    # Show loaded documents count
-    if st.session_state.documents_loaded and hasattr(st.session_state, 'pdf_list'):
-        st.success(f"✅ {len(st.session_state.pdf_list)} documents loaded")
-    else:
-        if not st.session_state.force_reload:
-            st.info("Loading documents...")
-
-# ============================================================
-# LOAD DOCUMENTS
-# ============================================================
-
-if not st.session_state.documents_loaded or st.session_state.force_reload:
-    with st.spinner("📚 Loading police documents from GitHub..."):
-        chunks, loaded_files = load_all_documents()
-        
-        if chunks:
-            st.session_state.vector_store = FAISS.from_documents(chunks, st.session_state.embeddings)
-            st.session_state.documents_loaded = True
-            st.session_state.pdf_list = loaded_files
-            st.session_state.force_reload = False
-            st.success(f"✅ Loaded {len(loaded_files)} documents ({len(chunks)} chunks)")
-        else:
-            st.warning("No PDFs found in 'Documents' folder. Please add PDF files and click Refresh.")
-
-# ============================================================
-# SEARCH FUNCTIONS
-# ============================================================
-
-def search_documents(query: str, top_k: int = 5) -> List:
-    """Search for relevant documents"""
+def search_documents_deep(query: str, top_k: int = 10) -> List:
+    """Search for relevant documents - returns more results for deeper analysis"""
     if not st.session_state.vector_store:
         return []
     
@@ -216,71 +191,210 @@ def search_documents(query: str, top_k: int = 5) -> List:
     results = retriever.invoke(query)
     return results
 
-def generate_detailed_answer(query: str, relevant_docs) -> tuple:
-    """Generate detailed answer from relevant documents"""
+def calculate_relevance_score(query: str, content: str) -> float:
+    """Calculate detailed relevance score between query and content"""
+    query_words = set(query.lower().split())
+    content_lower = content.lower()
+    content_words = set(content_lower.split())
+    
+    stop_words = {'the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 'of', 'with', 'by', 'is', 'are', 'was', 'were', 'be', 'been', 'being', 'have', 'has', 'had', 'having', 'do', 'does', 'did', 'doing', 'what', 'when', 'where', 'which', 'who', 'whom', 'this', 'that', 'these', 'those', 'am', 'it', 'they', 'we', 'you', 'he', 'she', 'it', 'them', 'us'}
+    
+    important_query = [w for w in query_words if w not in stop_words and len(w) > 2]
+    
+    if not important_query:
+        return 0.0
+    
+    # Word overlap score
+    word_matches = sum(1 for w in important_query if w in content_words)
+    word_score = word_matches / len(important_query)
+    
+    # Phrase score (check if query appears as phrase)
+    phrase_score = 1.0 if query.lower() in content_lower else 0.0
+    
+    # Length factor (prefer longer, more detailed content)
+    length_factor = min(len(content) / 1000, 1.0)
+    
+    # Combined score
+    total_score = (word_score * 0.5) + (phrase_score * 0.3) + (length_factor * 0.2)
+    
+    return min(total_score, 1.0)
+
+def generate_detailed_answer_enhanced(query: str, all_chunks: List, top_k: int = 8) -> tuple:
+    """Generate comprehensive detailed answer from all chunks"""
+    if not all_chunks:
+        return None, []
+    
+    # Score all chunks individually
+    scored_chunks = []
+    for chunk in all_chunks:
+        score = calculate_relevance_score(query, chunk.page_content)
+        if score > 0:
+            scored_chunks.append((score, chunk))
+    
+    # Sort by relevance
+    scored_chunks.sort(reverse=True, key=lambda x: x[0])
+    
+    # Take top relevant chunks (up to 8)
+    top_chunks = scored_chunks[:top_k]
+    
+    if not top_chunks:
+        return None, []
+    
+    # Group by source document
+    sources_dict = {}
+    for score, chunk in top_chunks:
+        source = chunk.metadata.get("source", "Unknown")
+        if source not in sources_dict:
+            sources_dict[source] = []
+        sources_dict[source].append((score, chunk))
+    
+    # Build detailed answer
+    answer_parts = []
+    all_sources = []
+    
+    for source, chunks_list in sources_dict.items():
+        all_sources.append(source)
+        
+        # Sort chunks within source by score
+        chunks_list.sort(reverse=True, key=lambda x: x[0])
+        
+        answer_parts.append(f"\n📄 **From {source}:**\n")
+        
+        for score, chunk in chunks_list[:3]:  # Top 3 chunks per document
+            # Extract relevant sentences
+            content = chunk.page_content
+            sentences = content.split('. ')
+            
+            # Find best sentences
+            query_words = set(query.lower().split())
+            relevant_sentences = []
+            
+            for sentence in sentences:
+                sentence_lower = sentence.lower()
+                if len(sentence) > 30:  # Only meaningful sentences
+                    if any(word in sentence_lower for word in query_words):
+                        relevant_sentences.append(sentence.strip())
+            
+            if relevant_sentences:
+                for sent in relevant_sentences[:2]:  # Top 2 sentences per chunk
+                    if sent and len(sent) > 20:
+                        answer_parts.append(f"  • {sent}.")
+            else:
+                # Take first 300 chars if no good sentence found
+                preview = content[:300]
+                if preview:
+                    answer_parts.append(f"  • {preview}...")
+    
+    if answer_parts:
+        # Combine answer
+        full_answer = "".join(answer_parts)
+        
+        # Clean up
+        full_answer = full_answer.replace("\n\n\n", "\n\n")
+        
+        # Add introduction
+        intro = f"I found the following information related to your question:\n\n"
+        final_answer = intro + full_answer
+        
+        return final_answer, list(set(all_sources))
+    
+    return None, []
+
+def generate_answer_with_all_context(query: str, relevant_docs) -> tuple:
+    """Alternative: Use all relevant docs to generate comprehensive answer"""
     if not relevant_docs:
         return None, []
     
+    # Combine all relevant content
+    all_content = []
+    sources = []
+    
+    for doc in relevant_docs[:10]:  # Use top 10 documents
+        sources.append(doc.metadata.get("source", "Unknown"))
+        all_content.append(doc.page_content)
+    
+    combined_content = " ".join(all_content)
+    
+    # Extract key information
     query_words = set(query.lower().split())
-    stop_words = {'the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 'of', 'with', 'by', 'is', 'are', 'was', 'were', 'be', 'been', 'being', 'have', 'has', 'had', 'having', 'do', 'does', 'did', 'doing', 'what', 'when', 'where', 'which', 'who', 'whom', 'this', 'that', 'these', 'those', 'am', 'it', 'they', 'we', 'you', 'he', 'she', 'it', 'them', 'us'}
+    stop_words = {'the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 'of', 'with', 'by', 'is', 'are', 'was', 'were', 'be', 'been', 'being', 'have', 'has', 'had', 'having', 'do', 'does', 'did', 'doing', 'what', 'when', 'where', 'which', 'who', 'whom', 'this', 'that', 'these', 'those'}
     
     important_words = [w for w in query_words if w not in stop_words and len(w) > 2]
     
-    scored_docs = []
-    for doc in relevant_docs:
-        content = doc.page_content
-        doc_words = set(content.lower().split())
-        
-        if important_words:
-            word_matches = sum(1 for w in important_words if w in doc_words)
-            word_score = word_matches / len(important_words)
-        else:
-            word_score = 0
-        
-        scored_docs.append((word_score, doc))
+    # Extract relevant sentences from combined content
+    sentences = combined_content.split('. ')
+    relevant_sentences = []
     
-    scored_docs.sort(reverse=True, key=lambda x: x[0])
-    high_relevance = [doc for score, doc in scored_docs if score >= 0.25]
-    
-    if not high_relevance:
-        return None, []
-    
-    answer_parts = []
-    sources = []
-    
-    for doc in high_relevance[:3]:
-        source = doc.metadata.get("source", "Unknown")
-        sources.append(source)
-        content = doc.page_content
-        
-        sentences = content.split('. ')
-        best_sentences = []
-        
-        for sentence in sentences:
+    for sentence in sentences:
+        if len(sentence) > 30:
             sentence_lower = sentence.lower()
-            if any(word in sentence_lower for word in important_words):
-                best_sentences.append(sentence.strip())
-        
-        if best_sentences:
-            answer_parts.extend(best_sentences[:2])
-        else:
-            answer_parts.append(content[:400])
+            # Check if sentence contains important words
+            if important_words:
+                if any(word in sentence_lower for word in important_words):
+                    relevant_sentences.append(sentence.strip())
+            else:
+                relevant_sentences.append(sentence.strip())
     
-    if answer_parts:
-        seen = set()
-        unique_parts = []
-        for part in answer_parts:
-            if part not in seen:
-                seen.add(part)
-                unique_parts.append(part)
-        
-        answer = ". ".join(unique_parts)
-        if not answer.endswith('.'):
-            answer += '.'
+    # Remove duplicates
+    seen = set()
+    unique_sentences = []
+    for sent in relevant_sentences:
+        if sent not in seen:
+            seen.add(sent)
+            unique_sentences.append(sent)
+    
+    if unique_sentences:
+        # Build detailed answer
+        answer = "Based on the police documents:\n\n"
+        for i, sent in enumerate(unique_sentences[:7], 1):
+            answer += f"{i}. {sent}.\n"
         
         return answer, list(set(sources))
     
     return None, []
+
+# ============================================================
+# SIDEBAR
+# ============================================================
+
+with st.sidebar:
+    st.markdown("### 📚 Knowledge Base")
+    
+    # Refresh button
+    if st.button("🔄 Refresh & Reload All PDFs", type="primary", use_container_width=True):
+        st.session_state.force_reload = True
+        st.session_state.documents_loaded = False
+        st.session_state.vector_store = None
+        st.session_state.all_chunks = []
+        st.rerun()
+    
+    st.divider()
+    
+    if st.session_state.documents_loaded and st.session_state.pdf_list:
+        st.success(f"✅ {len(st.session_state.pdf_list)} documents loaded")
+        st.caption(f"📊 Total: {len(st.session_state.all_chunks)} chunks")
+        
+        with st.expander("📄 View Documents"):
+            for doc in st.session_state.pdf_list:
+                st.markdown(f"- {doc}")
+
+# ============================================================
+# LOAD DOCUMENTS
+# ============================================================
+
+if not st.session_state.documents_loaded or st.session_state.force_reload:
+    with st.spinner("📚 Loading all police documents from GitHub..."):
+        chunks, loaded_files = load_all_documents()
+        
+        if chunks:
+            st.session_state.all_chunks = chunks
+            st.session_state.vector_store = FAISS.from_documents(chunks, st.session_state.embeddings)
+            st.session_state.documents_loaded = True
+            st.session_state.pdf_list = loaded_files
+            st.session_state.force_reload = False
+            st.success(f"✅ Loaded {len(loaded_files)} documents ({len(chunks)} chunks)")
+        else:
+            st.warning("No PDFs found in 'Documents' folder. Please add PDF files and click Refresh.")
 
 # ============================================================
 # MAIN CHAT AREA
@@ -300,40 +414,55 @@ if prompt:
         st.markdown(prompt)
     
     with st.chat_message("assistant"):
-        if not st.session_state.documents_loaded:
+        if not st.session_state.documents_loaded or not st.session_state.all_chunks:
             response = "⚠️ No documents loaded. Please add PDFs to the 'Documents' folder and click Refresh."
             st.markdown(response)
             st.session_state.messages.append({"role": "assistant", "content": response})
         else:
-            with st.spinner("🔍 Searching through police documents..."):
+            with st.spinner("🔍 Deep searching through all police documents..."):
                 try:
-                    results = search_documents(prompt)
+                    # Method 1: Use all chunks for detailed search
+                    answer, sources = generate_detailed_answer_enhanced(prompt, st.session_state.all_chunks, top_k=10)
                     
-                    if results:
-                        answer, sources = generate_detailed_answer(prompt, results)
+                    if not answer:
+                        # Method 2: Fallback to vector search
+                        vector_results = search_documents_deep(prompt, top_k=15)
+                        answer, sources = generate_answer_with_all_context(prompt, vector_results)
+                    
+                    if answer:
+                        st.markdown(f'<div class="detailed-answer">{answer}</div>', unsafe_allow_html=True)
                         
-                        if answer:
-                            st.markdown(f'<div class="answer-text">{answer}</div>', unsafe_allow_html=True)
-                            
-                            if sources:
-                                st.markdown(f'<div class="source-line">📄 Source: {", ".join(sources)}</div>', unsafe_allow_html=True)
-                            
-                            st.session_state.messages.append({
-                                "role": "assistant",
-                                "content": answer
-                            })
-                        else:
-                            response = "I found some information but nothing highly relevant. Could you please rephrase your question?"
-                            st.markdown(response)
-                            st.session_state.messages.append({"role": "assistant", "content": response})
+                        if sources:
+                            st.markdown(f'<div class="source-line">📄 Sources: {", ".join(sources[:5])}</div>', unsafe_allow_html=True)
+                        
+                        st.session_state.messages.append({
+                            "role": "assistant",
+                            "content": answer
+                        })
                     else:
-                        response = "No relevant information found. Try asking about police complaints, traffic procedures, citizen rights, or cyber laws."
+                        response = """I couldn't find specific information matching your query in the loaded documents.
+
+**Suggestions:**
+1. Try rephrasing your question with different keywords
+2. Make sure your PDFs contain relevant information
+3. Try asking about specific topics like:
+   - Complaint filing procedures
+   - Traffic violation rules
+   - Citizen rights
+   - Cyber crime reporting
+   - Missing person protocols
+
+**Example questions:**
+- "What is the procedure to file a police complaint?"
+- "How to report a cyber crime online?"
+- "What are the rights of citizens during police investigation?""
                         st.markdown(response)
                         st.session_state.messages.append({"role": "assistant", "content": response})
                         
                 except Exception as e:
-                    st.error(f"Search error: {str(e)[:200]}")
-                    st.session_state.messages.append({"role": "assistant", "content": f"Error: {str(e)[:200]}"})
+                    st.error(f"Search error: {str(e)[:300]}")
+                    st.session_state.messages.append({"role": "assistant", "content": f"Error: {str(e)[:300]}"})
 
+# Footer
 st.markdown("---")
 st.caption("Project PRJ-005 | Police Rulebook Assistant | Barath R K PDKV | 411623149004")
