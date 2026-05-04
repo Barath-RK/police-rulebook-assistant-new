@@ -34,12 +34,10 @@ st.markdown("""
     .stat-number-red { font-size: 2rem; font-weight: 700; color: #dc2626; }
     .stat-number-green { font-size: 2rem; font-weight: 700; color: #10b981; }
     .stat-label { font-size: 0.7rem; color: #8b949e; margin-top: 0.3rem; }
-    .doc-badge { background: rgba(16,185,129,0.15); color: #10b981; padding: 0.3rem 0.8rem; border-radius: 20px; font-size: 0.7rem; display: inline-block; margin: 0.25rem; border: 1px solid rgba(16,185,129,0.3); }
+    .doc-badge { background: rgba(16,185,129,0.15); color: #10b981; padding: 0.3rem 0.8rem; border-radius: 20px; font-size: 0.7rem; display: inline-block; margin: 0.25rem; }
     .upload-card { background: #131823; border-radius: 15px; padding: 1rem; margin-bottom: 1rem; border: 2px dashed rgba(220,38,38,0.4); text-align: center; }
     .stButton button { background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%); color: white; border: none; border-radius: 10px; padding: 0.5rem 1rem; font-weight: 600; width: 100%; }
-    .stButton button:hover { transform: translateY(-2px); box-shadow: 0 5px 15px rgba(220,38,38,0.4); }
     .answer-section { background: linear-gradient(135deg, #0f1a14 0%, #0d1f18 100%); padding: 1.2rem; border-radius: 15px; margin: 0.5rem 0; line-height: 1.7; border-left: 4px solid #10b981; color: #e6edf3; }
-    .stTextInput input { border-radius: 30px !important; border: 2px solid #21262d !important; background: #0d1117 !important; color: #e6edf3 !important; padding: 0.7rem 1.2rem !important; }
     .footer { text-align: center; padding: 1.5rem; color: #8b949e; font-size: 0.75rem; border-top: 1px solid #21262d; margin-top: 2rem; }
 </style>
 """, unsafe_allow_html=True)
@@ -128,8 +126,8 @@ def process_uploaded_pdf(uploaded_file):
         if not documents:
             return []
         splitter = RecursiveCharacterTextSplitter(
-            chunk_size=1000,
-            chunk_overlap=200,
+            chunk_size=800,
+            chunk_overlap=150,
             separators=["\n\n", "\n", ". ", " ", ""]
         )
         chunks = splitter.split_documents(documents)
@@ -161,8 +159,8 @@ def load_all_documents():
             model_name="sentence-transformers/all-MiniLM-L6-v2"
         )
     splitter = RecursiveCharacterTextSplitter(
-        chunk_size=1000,
-        chunk_overlap=200,
+        chunk_size=800,
+        chunk_overlap=150,
         separators=["\n\n", "\n", ". ", " ", ""]
     )
     for pdf_info in pdf_files:
@@ -177,136 +175,118 @@ def load_all_documents():
             loaded_files.append(pdf_info['name'])
     return all_chunks, loaded_files
 
-def smart_search_with_priority(query: str, all_chunks: List, top_k: int = 15) -> List:
-    """Smart search that prioritizes IPC/CrPC for crime-related questions"""
+# ============================================================
+# DIRECT IPC SEARCH FUNCTION
+# ============================================================
+
+def find_ipc_answer(query: str, all_chunks: List) -> str:
+    """Directly search for IPC sections and punishments"""
     query_lower = query.lower()
     
-    # Define QUESTION TYPES to identify which PDF to prioritize
-    crime_keywords = [
-        "murder", "theft", "robbery", "dacoity", "rape", "assault", "hurt", 
-        "kidnapping", "cheating", "forgery", "extortion", "criminal breach",
-        "mischief", "trespass", "defamation", "punishment", "offence"
-    ]
+    # Common IPC question mappings
+    ipc_mappings = {
+        "punishment for murder": "302",
+        "murder punishment": "302",
+        "murder": "302",
+        "theft punishment": "378",
+        "punishment for theft": "378",
+        "robbery punishment": "392",
+        "punishment for robbery": "392",
+        "rape punishment": "376",
+        "punishment for rape": "376",
+        "cheating punishment": "420",
+        "punishment for cheating": "420",
+        "dowry death": "304b",
+        "dowry death punishment": "304b",
+        "criminal breach of trust": "406",
+        "defamation punishment": "500",
+        "hurt punishment": "323",
+        "grievous hurt": "325",
+    }
     
-    ipc_keywords = ["ipc", "indian penal code", "section 3", "section 302"]
+    # Find which section we need
+    section_number = None
+    for key, section in ipc_mappings.items():
+        if key in query_lower:
+            section_number = section
+            break
     
-    # Check if question is about crimes/punishments
-    is_crime_question = any(keyword in query_lower for keyword in crime_keywords)
-    is_ipc_question = any(keyword in query_lower for keyword in ipc_keywords) or is_crime_question
+    # If we know the section, search for it directly
+    if section_number:
+        search_pattern = f"section {section_number}"
+        search_pattern2 = f"section {section_number}." if section_number.isdigit() else f"section {section_number}"
+        
+        best_chunk = None
+        best_content = ""
+        
+        for chunk in all_chunks:
+            content = chunk.page_content.lower()
+            source = chunk.metadata.get("source", "").lower()
+            
+            # Check if this chunk contains the section
+            if search_pattern in content or search_pattern2 in content:
+                # Prefer IPC documents
+                if "indian penal code" in source or "ipc" in source or "penal" in source:
+                    best_chunk = chunk
+                    break
+                elif best_chunk is None:
+                    best_chunk = chunk
+        
+        if best_chunk:
+            content = best_chunk.page_content
+            
+            # Extract relevant part around the section
+            lines = content.split('\n')
+            relevant_lines = []
+            found = False
+            
+            for i, line in enumerate(lines):
+                if search_pattern in line.lower() or search_pattern2 in line.lower():
+                    found = True
+                    # Take this line and next 2-3 lines
+                    for j in range(i, min(i + 4, len(lines))):
+                        if lines[j].strip():
+                            relevant_lines.append(lines[j].strip())
+                    break
+            
+            if relevant_lines:
+                answer = " ".join(relevant_lines)
+                # Clean up
+                answer = re.sub(r'\s+', ' ', answer)
+                return answer
     
-    cyber_keywords = ["cyber", "it act", "hacking", "phishing", "data protection", "online fraud"]
-    is_cyber_question = any(keyword in query_lower for keyword in cyber_keywords)
-    
-    scored_chunks = []
-    query_words = set(query_lower.split())
-    stop_words = {'the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 'of', 'with', 'by', 'is', 'are', 'was', 'were', 'be', 'been', 'being', 'have', 'has', 'had', 'having', 'do', 'does', 'did', 'doing', 'what', 'when', 'where', 'which', 'who', 'whom', 'this', 'that', 'these', 'those'}
-    important_words = [w for w in query_words if w not in stop_words and len(w) > 2]
-    
+    # Fallback to general search
+    best_chunks = []
     for chunk in all_chunks:
-        content = chunk.page_content
-        content_lower = content.lower()
+        content = chunk.page_content.lower()
         source = chunk.metadata.get("source", "").lower()
         
-        # Base score
-        base_score = 0
-        
-        # Calculate word match score
-        if important_words:
-            word_matches = sum(1 for word in important_words if word in content_lower)
-            word_score = word_matches / len(important_words)
-        else:
-            word_score = 0
-        
-        base_score = word_score
-        
-        # PRIORITY BOOSTING
-        # Boost for IPC/CrPC content when asking about crimes
-        if is_crime_question or is_ipc_question:
+        # Check if content contains relevant keywords
+        if any(word in content for word in ["punishment", "imprisonment", "death", "fine", "section"]):
+            # Prioritize IPC
             if "indian penal code" in source or "ipc" in source or "penal" in source:
-                base_score += 0.5  # BIG BOOST for IPC
-            if "section 302" in content_lower or "section 304" in content_lower or "section 378" in content_lower:
-                base_score += 0.4  # Boost for section mentions
-            if "murder" in content_lower and "punishment" in content_lower:
-                base_score += 0.3
-        
-        # Penalize Cyber Laws for non-cyber questions
-        if not is_cyber_question:
-            if "cyber" in source or "it act" in content_lower:
-                base_score -= 0.3  # PENALTY for wrong PDF
-        
-        # Cyber question gets boost for cyber content
-        if is_cyber_question:
-            if "cyber" in source or "it act" in content_lower:
-                base_score += 0.5
-        
-        # Exact phrase match bonus
-        if query_lower in content_lower:
-            base_score += 0.2
-        
-        if base_score > 0:
-            scored_chunks.append((base_score, chunk))
-    
-    scored_chunks.sort(reverse=True, key=lambda x: x[0])
-    return [chunk for score, chunk in scored_chunks[:top_k]]
-
-def extract_answer_from_chunks(query: str, relevant_chunks: List, all_docs: List) -> str:
-    """Extract answer from prioritized chunks"""
-    if not relevant_chunks:
-        return None
-    
-    query_lower = query.lower()
-    query_words = set(query_lower.split())
-    
-    # Look for specific section information
-    best_answer = ""
-    best_score = 0
-    
-    for chunk in relevant_chunks:
-        content = chunk.page_content
-        content_lower = content.lower()
-        source = chunk.metadata.get("source", "")
-        
-        # Calculate relevance
-        score = 0
-        
-        # Check for section numbers
-        section_match = re.search(r'section\s*(\d+)', content_lower, re.IGNORECASE)
-        if section_match:
-            score += 0.3
-        
-        # Check for answer patterns (like "punishment for murder")
-        if "punishment" in content_lower:
-            score += 0.2
-        
-        # Word overlap
-        content_words = set(content_lower.split())
-        overlap = len(query_words & content_words)
-        if len(query_words) > 0:
-            score += overlap / len(query_words)
-        
-        if score > best_score:
-            best_score = score
-            # Extract the most relevant paragraph
-            sentences = re.split(r'[.!?]\s+', content)
-            relevant_sentences = []
-            for sentence in sentences:
-                if len(sentence) > 30:
-                    if any(word in sentence.lower() for word in query_words):
-                        relevant_sentences.append(sentence.strip())
-                    elif "section" in sentence.lower() and "punishment" in sentence.lower():
-                        relevant_sentences.append(sentence.strip())
-            
-            if relevant_sentences:
-                best_answer = ". ".join(relevant_sentences[:3])
+                best_chunks.append((3, chunk))
             else:
-                best_answer = content[:600]
+                best_chunks.append((1, chunk))
     
-    if best_answer:
-        # Clean up
-        best_answer = best_answer.strip()
-        if not best_answer.endswith('.') and not best_answer.endswith('?'):
-            best_answer += '.'
-        return best_answer
+    best_chunks.sort(reverse=True, key=lambda x: x[0])
+    
+    if best_chunks:
+        top_chunk = best_chunks[0][1]
+        content = top_chunk.page_content
+        
+        # Extract sentences containing punishment keywords
+        sentences = re.split(r'[.!?]\s+', content)
+        relevant = []
+        for sentence in sentences:
+            if any(word in sentence.lower() for word in ["punishment", "section", "imprisonment", "death", "fine", "shall be punished"]):
+                if len(sentence) > 20:
+                    relevant.append(sentence.strip())
+        
+        if relevant:
+            return ". ".join(relevant[:3])
+        else:
+            return content[:500]
     
     return None
 
@@ -400,7 +380,7 @@ for message in st.session_state.messages:
     with st.chat_message(message["role"]):
         st.markdown(message["content"])
 
-prompt = st.chat_input("Ask about IPC, CrPC, Cyber Laws, or police procedures...")
+prompt = st.chat_input("Ask about IPC sections, punishments, CrPC, or Cyber Laws...")
 
 if prompt:
     st.session_state.messages.append({"role": "user", "content": prompt})
@@ -412,22 +392,16 @@ if prompt:
             response = "⚠️ No documents loaded. Please upload PDFs to continue."
             st.markdown(response)
         else:
-            with st.spinner(f"🔍 Searching through {st.session_state.total_chunks_count} legal documents..."):
+            with st.spinner(f"🔍 Searching {st.session_state.total_chunks_count} legal documents..."):
                 try:
-                    relevant = smart_search_with_priority(prompt, st.session_state.all_chunks, top_k=15)
+                    # Use direct IPC search
+                    answer = find_ipc_answer(prompt, st.session_state.all_chunks)
                     
-                    if relevant:
-                        answer = extract_answer_from_chunks(prompt, relevant, st.session_state.pdf_list)
-                        
-                        if answer:
-                            st.markdown(f'<div class="answer-section">{answer}</div>', unsafe_allow_html=True)
-                            st.session_state.messages.append({"role": "assistant", "content": answer})
-                        else:
-                            response = "No specific information found. Try a different question."
-                            st.markdown(response)
-                            st.session_state.messages.append({"role": "assistant", "content": response})
+                    if answer:
+                        st.markdown(f'<div class="answer-section">{answer}</div>', unsafe_allow_html=True)
+                        st.session_state.messages.append({"role": "assistant", "content": answer})
                     else:
-                        response = "No relevant information found. Try different keywords."
+                        response = "No specific information found. Try asking about specific IPC sections like 'punishment for murder under IPC'."
                         st.markdown(response)
                         st.session_state.messages.append({"role": "assistant", "content": response})
                         
