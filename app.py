@@ -3,16 +3,11 @@ import tempfile
 import os
 from datetime import datetime
 
-# CORRECT IMPORTS for latest LangChain
-try:
-    from langchain_community.document_loaders import PyPDFLoader
-    from langchain_community.embeddings import HuggingFaceEmbeddings
-    from langchain_community.vectorstores import FAISS
-    from langchain.text_splitter import RecursiveCharacterTextSplitter
-    print("✅ Imports successful")
-except ImportError as e:
-    st.error(f"Import error: {e}")
-    st.stop()
+# CORRECT IMPORTS - Using langchain_community for all
+from langchain_community.document_loaders import PyPDFLoader
+from langchain_community.text_splitter import RecursiveCharacterTextSplitter
+from langchain_community.embeddings import HuggingFaceEmbeddings
+from langchain_community.vectorstores import FAISS
 
 st.set_page_config(page_title="Police Rulebook Assistant", page_icon="👮", layout="wide")
 
