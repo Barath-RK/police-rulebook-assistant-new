@@ -35,14 +35,6 @@ st.markdown("""
         padding-top: 0.5rem;
         border-top: 1px solid #eee;
     }
-    .answer-text {
-        font-size: 1rem;
-        line-height: 1.6;
-    }
-    /* Hide default sidebar elements if any */
-    [data-testid="stSidebarNav"] {
-        display: none;
-    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -63,6 +55,8 @@ if "documents_loaded" not in st.session_state:
     st.session_state.documents_loaded = False
 if "embeddings" not in st.session_state:
     st.session_state.embeddings = None
+if "force_reload" not in st.session_state:
+    st.session_state.force_reload = False
 
 # ============================================================
 # GITHUB CONFIGURATION
@@ -120,9 +114,10 @@ def load_pdf_from_url(url: str, filename: str) -> List:
     except Exception as e:
         return []
 
-def load_all_documents():
+def load_all_documents(show_progress=True):
     """Load all PDFs from GitHub Documents folder"""
     all_chunks = []
+    loaded_files = []
     
     pdf_files = get_pdf_files_from_github()
     
@@ -130,9 +125,10 @@ def load_all_documents():
         return [], []
     
     if st.session_state.embeddings is None:
-        st.session_state.embeddings = HuggingFaceEmbeddings(
-            model_name="sentence-transformers/all-MiniLM-L6-v2"
-        )
+        with st.spinner("Loading AI model..."):
+            st.session_state.embeddings = HuggingFaceEmbeddings(
+                model_name="sentence-transformers/all-MiniLM-L6-v2"
+            )
     
     splitter = RecursiveCharacterTextSplitter(
         chunk_size=500,
@@ -140,38 +136,72 @@ def load_all_documents():
         separators=["\n\n", "\n", ". ", " ", ""]
     )
     
-    for pdf_info in pdf_files:
+    if show_progress:
+        progress_bar = st.progress(0)
+        status_text = st.empty()
+    
+    for i, pdf_info in enumerate(pdf_files):
+        if show_progress:
+            status_text.text(f"Loading: {pdf_info['name']}...")
+        
         documents = load_pdf_from_url(pdf_info['raw_url'], pdf_info['name'])
         
         if documents:
             chunks = splitter.split_documents(documents)
             for j, chunk in enumerate(chunks):
                 chunk.metadata["chunk_id"] = j
+                chunk.metadata["total_chunks"] = len(chunks)
             all_chunks.extend(chunks)
+            loaded_files.append(pdf_info['name'])
+        
+        if show_progress:
+            progress_bar.progress((i + 1) / len(pdf_files))
     
-    return all_chunks, [f['name'] for f in pdf_files]
+    if show_progress:
+        status_text.empty()
+        progress_bar.empty()
+    
+    return all_chunks, loaded_files
 
 # ============================================================
-# LOAD DOCUMENTS ON STARTUP
+# SIDEBAR - With Refresh Button
 # ============================================================
 
-if not st.session_state.documents_loaded:
-    with st.spinner("📚 Loading police documents..."):
+with st.sidebar:
+    st.markdown("### 📚 Police Rulebook")
+    
+    # Refresh button to reload documents
+    if st.button("🔄 Refresh Knowledge Base", type="primary", use_container_width=True):
+        st.session_state.force_reload = True
+        st.session_state.documents_loaded = False
+        st.session_state.vector_store = None
+        st.rerun()
+    
+    st.divider()
+    
+    # Show loaded documents count
+    if st.session_state.documents_loaded and hasattr(st.session_state, 'pdf_list'):
+        st.success(f"✅ {len(st.session_state.pdf_list)} documents loaded")
+    else:
+        if not st.session_state.force_reload:
+            st.info("Loading documents...")
+
+# ============================================================
+# LOAD DOCUMENTS
+# ============================================================
+
+if not st.session_state.documents_loaded or st.session_state.force_reload:
+    with st.spinner("📚 Loading police documents from GitHub..."):
         chunks, loaded_files = load_all_documents()
         
         if chunks:
             st.session_state.vector_store = FAISS.from_documents(chunks, st.session_state.embeddings)
             st.session_state.documents_loaded = True
+            st.session_state.pdf_list = loaded_files
+            st.session_state.force_reload = False
+            st.success(f"✅ Loaded {len(loaded_files)} documents ({len(chunks)} chunks)")
         else:
-            st.warning("No PDFs found in 'Documents' folder. Please add PDF files.")
-
-# ============================================================
-# SIDEBAR - COMPLETELY EMPTY (No content)
-# ============================================================
-
-# Empty sidebar - nothing shown
-with st.sidebar:
-    pass  # Intentionally empty - no content displayed
+            st.warning("No PDFs found in 'Documents' folder. Please add PDF files and click Refresh.")
 
 # ============================================================
 # SEARCH FUNCTIONS
@@ -258,24 +288,20 @@ def generate_detailed_answer(query: str, relevant_docs) -> tuple:
 
 st.markdown("## 💬 Ask Questions")
 
-# Display chat history
 for message in st.session_state.messages:
     with st.chat_message(message["role"]):
         st.markdown(message["content"])
 
-# Chat input
 prompt = st.chat_input("Ask anything about police procedures...")
 
 if prompt:
-    # Add user message
     st.session_state.messages.append({"role": "user", "content": prompt})
     with st.chat_message("user"):
         st.markdown(prompt)
     
-    # Get assistant response
     with st.chat_message("assistant"):
         if not st.session_state.documents_loaded:
-            response = "⚠️ No documents loaded. Please add PDFs to the 'Documents' folder in GitHub."
+            response = "⚠️ No documents loaded. Please add PDFs to the 'Documents' folder and click Refresh."
             st.markdown(response)
             st.session_state.messages.append({"role": "assistant", "content": response})
         else:
@@ -309,6 +335,5 @@ if prompt:
                     st.error(f"Search error: {str(e)[:200]}")
                     st.session_state.messages.append({"role": "assistant", "content": f"Error: {str(e)[:200]}"})
 
-# Footer
 st.markdown("---")
 st.caption("Project PRJ-005 | Police Rulebook Assistant | Barath R K PDKV | 411623149004")
