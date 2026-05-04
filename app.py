@@ -2,7 +2,7 @@ import streamlit as st
 import tempfile
 import os
 
-# CORRECT IMPORTS for LangChain 0.1.0
+# CORRECT IMPORTS for LangChain
 from langchain_community.document_loaders import PyPDFLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_community.embeddings import HuggingFaceEmbeddings
@@ -10,23 +10,70 @@ from langchain_community.vectorstores import FAISS
 
 st.set_page_config(page_title="Police Rulebook Assistant", page_icon="👮", layout="wide")
 
+# Custom CSS for better UI
+st.markdown("""
+<style>
+    .stChatMessage {
+        padding: 1rem;
+        border-radius: 0.5rem;
+        margin-bottom: 1rem;
+    }
+    .main-header {
+        text-align: center;
+        padding: 1rem;
+        background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+        border-radius: 10px;
+        color: white;
+        margin-bottom: 2rem;
+    }
+    .confidence-high {
+        color: #28a745;
+        font-weight: bold;
+    }
+    .confidence-low {
+        color: #dc3545;
+        font-weight: bold;
+    }
+</style>
+""", unsafe_allow_html=True)
+
+# Header
+st.markdown("""
+<div class="main-header">
+    <h1>👮 Police Rulebook Assistant</h1>
+    <p>RAG Document Assistant for SOPs, Complaint Manuals & Citizen Procedures</p>
+</div>
+""", unsafe_allow_html=True)
+
+# Initialize session state
 if "messages" not in st.session_state:
     st.session_state.messages = []
 if "vector_store" not in st.session_state:
     st.session_state.vector_store = None
 if "documents" not in st.session_state:
     st.session_state.documents = []
+if "embeddings_loaded" not in st.session_state:
+    st.session_state.embeddings_loaded = False
 
-st.title("👮 Police Rulebook Assistant")
-st.caption("RAG Assistant for Police SOPs, Complaint Manuals & Citizen Procedures")
+# Load embeddings once
+if not st.session_state.embeddings_loaded:
+    with st.spinner("🔄 Loading AI model (first time only)... This may take 1-2 minutes."):
+        try:
+            st.session_state.embeddings = HuggingFaceEmbeddings(
+                model_name="sentence-transformers/all-MiniLM-L6-v2"
+            )
+            st.session_state.embeddings_loaded = True
+        except Exception as e:
+            st.error(f"Error loading embeddings: {e}")
 
+# Sidebar
 with st.sidebar:
-    st.header("📁 Upload Documents")
+    st.markdown("## 📁 Document Management")
     
-    uploaded_file = st.file_uploader("Upload Police PDF", type=["pdf"])
+    uploaded_file = st.file_uploader("📄 Upload Police PDF", type=["pdf"], help="Upload any police procedure document")
     
-    if uploaded_file and st.button("📤 Upload"):
-        with st.spinner("Processing..."):
+    if uploaded_file and st.button("📤 Upload to Knowledge Base", type="primary", use_container_width=True):
+        with st.spinner("📖 Processing document..."):
             try:
                 with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp:
                     tmp.write(uploaded_file.read())
@@ -35,78 +82,213 @@ with st.sidebar:
                 loader = PyPDFLoader(tmp_path)
                 docs = loader.load()
                 
-                splitter = RecursiveCharacterTextSplitter(chunk_size=500, chunk_overlap=50)
+                splitter = RecursiveCharacterTextSplitter(
+                    chunk_size=500,
+                    chunk_overlap=50,
+                    separators=["\n\n", "\n", ". ", " ", ""]
+                )
                 chunks = splitter.split_documents(docs)
                 
                 for i, chunk in enumerate(chunks):
                     chunk.metadata["source"] = uploaded_file.name
                     chunk.metadata["chunk_id"] = i
-                
-                embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
+                    chunk.metadata["page"] = chunk.metadata.get("page", 1)
                 
                 if st.session_state.vector_store is None:
-                    st.session_state.vector_store = FAISS.from_documents(chunks, embeddings)
+                    st.session_state.vector_store = FAISS.from_documents(chunks, st.session_state.embeddings)
                 else:
                     st.session_state.vector_store.add_documents(chunks)
                 
                 st.session_state.documents.extend(chunks)
-                st.success(f"✅ Uploaded! {len(chunks)} chunks created")
+                
+                st.success(f"✅ Successfully uploaded **{uploaded_file.name}**")
+                st.info(f"📊 Created **{len(chunks)}** text chunks")
+                
                 os.unlink(tmp_path)
                 st.rerun()
+                
             except Exception as e:
-                st.error(f"Error: {e}")
+                st.error(f"❌ Error: {str(e)[:200]}")
     
     st.divider()
-    st.metric("Documents in KB", len(st.session_state.documents))
-    if st.session_state.vector_store:
-        st.success("✅ Ready")
+    
+    # Document list
+    st.markdown("## 📚 Uploaded Documents")
+    if st.session_state.documents:
+        unique_sources = list(set([doc.metadata.get("source", "Unknown") for doc in st.session_state.documents]))
+        for source in unique_sources:
+            chunk_count = sum(1 for doc in st.session_state.documents if doc.metadata.get("source") == source)
+            st.markdown(f"📄 **{source}**")
+            st.caption(f"   {chunk_count} chunks")
+    else:
+        st.info("No documents uploaded yet")
+    
+    st.divider()
+    
+    # System status
+    st.markdown("## 📊 System Status")
+    col1, col2 = st.columns(2)
+    with col1:
+        st.metric("📄 Documents", len(st.session_state.documents) if st.session_state.documents else 0)
+    with col2:
+        if st.session_state.vector_store:
+            st.markdown("✅ **Vector Store**")
+            st.caption("FAISS Ready")
+        else:
+            st.markdown("⏳ **Vector Store**")
+            st.caption("Waiting for upload")
+    
+    st.divider()
+    
+    # Sample questions
+    st.markdown("## 💡 Sample Questions")
+    sample_queries = [
+        "How to file a police complaint?",
+        "What is the procedure for traffic violation?",
+        "Tell me about citizen rights",
+        "How to report a missing person?"
+    ]
+    
+    for q in sample_queries:
+        if st.button(f"🔍 {q}", key=f"sample_{q[:20]}", use_container_width=True):
+            st.session_state.prompt = q
+            st.rerun()
 
-st.header("💬 Ask Questions")
+# Main chat area
+st.markdown("## 💬 Ask Questions from Police Rulebook")
 
-for msg in st.session_state.messages:
-    with st.chat_message(msg["role"]):
-        st.markdown(msg["content"])
-        if "sources" in msg and msg["sources"]:
-            with st.expander("📚 Sources"):
-                for s in msg["sources"]:
-                    st.caption(f"📄 {s}")
+# Display chat history
+for message in st.session_state.messages:
+    with st.chat_message(message["role"]):
+        st.markdown(message["content"])
+        
+        if "sources" in message and message["sources"]:
+            with st.expander("📚 View Sources & Citations"):
+                for source in message["sources"]:
+                    st.markdown(f"📄 **File:** `{source.get('filename', 'Unknown')}`")
+                    if source.get("page"):
+                        st.markdown(f"📑 **Page:** {source.get('page')}")
+                    st.markdown(f"📝 **Excerpt:**")
+                    st.markdown(f"> {source.get('excerpt', '')[:200]}...")
+                    st.divider()
+        
+        if "confidence" in message:
+            conf = message["confidence"]
+            if conf > 0.7:
+                st.markdown(f'<span class="confidence-high">🎯 Confidence: {conf:.0%}</span>', unsafe_allow_html=True)
+            else:
+                st.markdown(f'<span class="confidence-low">⚠️ Confidence: {conf:.0%}</span>', unsafe_allow_html=True)
 
-if prompt := st.chat_input("Ask about police procedures..."):
+# Handle prompt
+if "prompt" in st.session_state:
+    prompt = st.session_state.prompt
+    del st.session_state.prompt
+else:
+    prompt = st.chat_input("Type your question about police procedures...")
+
+# Process question
+if prompt:
+    # Add user message
     st.session_state.messages.append({"role": "user", "content": prompt})
     with st.chat_message("user"):
         st.markdown(prompt)
     
+    # Get assistant response
     with st.chat_message("assistant"):
         if st.session_state.vector_store is None:
-            response = "⚠️ Please upload a PDF document first using the sidebar."
-            st.markdown(response)
+            response_message = "⚠️ **No documents uploaded yet.**\n\nPlease upload a PDF document using the sidebar to start asking questions."
+            st.markdown(response_message)
+            st.session_state.messages.append({"role": "assistant", "content": response_message})
         else:
-            with st.spinner("Searching police rulebook..."):
+            with st.spinner("🔍 Searching through police rulebook..."):
                 try:
+                    # FIXED: Use invoke() instead of get_relevant_documents()
                     retriever = st.session_state.vector_store.as_retriever(search_kwargs={"k": 3})
-                    docs = retriever.get_relevant_documents(prompt)
+                    relevant_docs = retriever.invoke(prompt)
                     
-                    if docs:
-                        response = "📋 **Based on the Police Rulebook:**\n\n"
+                    if relevant_docs:
+                        # Calculate confidence
+                        query_words = set(prompt.lower().split())
+                        all_text = " ".join([doc.page_content for doc in relevant_docs])
+                        all_words = set(all_text.lower().split())
+                        
+                        if len(query_words) > 0:
+                            common = len(query_words & all_words)
+                            confidence = min(common / len(query_words), 0.95)
+                        else:
+                            confidence = 0.0
+                        
+                        # Build response
+                        response_parts = ["📋 **Based on the Police Rulebook:**\n"]
                         sources = []
-                        for i, doc in enumerate(docs):
-                            response += f"**Source {i+1}:** {doc.page_content[:400]}...\n\n"
-                            source_name = doc.metadata.get('source', 'Unknown')
-                            response += f"📄 *Source: {source_name}*\n\n"
-                            sources.append(source_name)
-                        st.markdown(response)
+                        
+                        for i, doc in enumerate(relevant_docs):
+                            # Get best sentence
+                            sentences = doc.page_content.split('. ')
+                            best_sentence = ""
+                            max_overlap = 0
+                            for sentence in sentences:
+                                sentence_words = set(sentence.lower().split())
+                                overlap = len(query_words & sentence_words)
+                                if overlap > max_overlap:
+                                    max_overlap = overlap
+                                    best_sentence = sentence
+                            
+                            if best_sentence:
+                                response_parts.append(f"**Source {i+1}:** {best_sentence}.")
+                            else:
+                                response_parts.append(f"**Source {i+1}:** {doc.page_content[:300]}...")
+                            
+                            source_info = {
+                                "filename": doc.metadata.get("source", "Unknown"),
+                                "page": doc.metadata.get("page", 1),
+                                "excerpt": doc.page_content[:200] + "..."
+                            }
+                            sources.append(source_info)
+                            response_parts.append(f"📄 *Source: {source_info['filename']} (Page {source_info['page']})*\n")
+                        
+                        response_message = "\n\n".join(response_parts)
+                        st.markdown(response_message)
+                        
+                        # Show confidence
+                        if confidence > 0.7:
+                            st.markdown(f'<span class="confidence-high">✅ High confidence: {confidence:.0%}</span>', unsafe_allow_html=True)
+                        else:
+                            st.markdown(f'<span class="confidence-low">⚠️ Low confidence: {confidence:.0%} - Try rephrasing</span>', unsafe_allow_html=True)
+                        
+                        # Show sources expander
+                        with st.expander("📚 View Detailed Sources"):
+                            for source in sources:
+                                st.markdown(f"**📄 File:** `{source['filename']}`")
+                                st.markdown(f"**📑 Page:** {source['page']}")
+                                st.markdown(f"**📝 Excerpt:**")
+                                st.markdown(f"> {source['excerpt']}")
+                                st.divider()
+                        
+                        # Save to history
+                        st.session_state.messages.append({
+                            "role": "assistant",
+                            "content": response_message,
+                            "sources": sources,
+                            "confidence": confidence
+                        })
                     else:
-                        response = "No relevant information found. Try rephrasing your question."
-                        st.markdown(response)
-                        sources = []
-                    
-                    st.session_state.messages.append({
-                        "role": "assistant", 
-                        "content": response,
-                        "sources": sources if docs else []
-                    })
+                        response_message = "❌ **No relevant information found.**\n\nPlease try rephrasing your question or upload more relevant documents."
+                        st.markdown(response_message)
+                        st.session_state.messages.append({"role": "assistant", "content": response_message})
+                        
                 except Exception as e:
-                    st.error(f"Search error: {e}")
+                    st.error(f"Search error: {str(e)[:200]}")
+                    st.session_state.messages.append({"role": "assistant", "content": f"Error: {str(e)[:200]}"})
 
+# Footer
 st.markdown("---")
-st.caption("👨‍🎓 **Barath R K PDKV** | 411623149004 | PRJ-005 | Week 2 Complete")
+col1, col2, col3 = st.columns(3)
+with col1:
+    st.caption("🏆 **Project PRJ-005** | Police Rulebook Assistant")
+with col2:
+    st.caption("👨‍🎓 **Barath R K PDKV** | 411623149004")
+with col3:
+    st.caption("✅ **Week 1 + Week 2 Complete** | RAG System")
+
+st.caption("🔧 **Features:** PDF Upload | RAG Search | Citations | FAISS Vector Store")
