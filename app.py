@@ -12,14 +12,25 @@ from langchain_community.vectorstores import FAISS
 
 st.set_page_config(page_title="Police Rulebook Assistant", page_icon="👮", layout="wide")
 
-# Custom CSS
+# Custom CSS - Fixed for dark/light mode compatibility
 st.markdown("""
 <style>
+    /* Force dark text for all content - fixes white text issue */
+    .stChatMessage, .stMarkdown, .stAlert, .stSuccess, .stInfo, .stWarning {
+        color: #1a1a2e !important;
+    }
+    
+    .stChatMessage p, .stMarkdown p, .stChatMessage div, .stMarkdown div {
+        color: #1a1a2e !important;
+    }
+    
     .stChatMessage {
         padding: 1rem;
         border-radius: 0.5rem;
         margin-bottom: 1rem;
+        background-color: #f8f9fa !important;
     }
+    
     .main-header {
         text-align: center;
         padding: 1rem;
@@ -28,22 +39,48 @@ st.markdown("""
         color: white;
         margin-bottom: 2rem;
     }
+    
+    .main-header h1, .main-header p {
+        color: white !important;
+    }
+    
     .source-line {
         font-size: 0.8rem;
-        color: #666;
+        color: #666666 !important;
         margin-top: 0.5rem;
         padding-top: 0.5rem;
-        border-top: 1px solid #eee;
+        border-top: 1px solid #dddddd;
     }
-    .answer-text {
-        font-size: 1rem;
-        line-height: 1.6;
-    }
+    
     .detailed-answer {
-        background-color: #f8f9fa;
+        background-color: #f0f2f6;
         padding: 1rem;
         border-radius: 0.5rem;
         margin: 0.5rem 0;
+        color: #1a1a2e !important;
+    }
+    
+    .detailed-answer p, .detailed-answer div, .detailed-answer span {
+        color: #1a1a2e !important;
+    }
+    
+    /* Sidebar styling */
+    [data-testid="stSidebar"] {
+        background-color: #f8f9fa;
+    }
+    
+    [data-testid="stSidebar"] p, [data-testid="stSidebar"] div {
+        color: #1a1a2e !important;
+    }
+    
+    /* Input text styling */
+    .stTextInput input, .stTextArea textarea {
+        color: #1a1a2e !important;
+    }
+    
+    /* Fix for any remaining white text */
+    .element-container, .row-widget, .stAlertContent {
+        color: #1a1a2e !important;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -102,9 +139,11 @@ def get_pdf_files_from_github():
                         'raw_url': RAW_BASE_URL + file['name']
                     })
             return pdf_files
-        return []
+        else:
+            st.warning(f"Cannot access GitHub folder. Status: {response.status_code}")
+            return []
     except Exception as e:
-        st.error(f"Error accessing GitHub: {e}")
+        st.warning(f"Cannot connect to GitHub: {e}")
         return []
 
 def load_pdf_from_url(url: str, filename: str) -> List:
@@ -205,8 +244,7 @@ def calculate_relevance_score(query: str, content: str) -> float:
         return 0.0
     
     word_matches = sum(1 for w in important_query if w in content_words)
-    word_score = word_matches / len(important_query)
-    
+    word_score = word_matches / len(important_query) if important_query else 0
     phrase_score = 1.0 if query.lower() in content_lower else 0.0
     length_factor = min(len(content) / 1000, 1.0)
     total_score = (word_score * 0.5) + (phrase_score * 0.3) + (length_factor * 0.2)
@@ -416,4 +454,4 @@ if prompt:
 
 # Footer
 st.markdown("---")
-st.caption("Project PRJ-005 | Police Rulebook Assistant | Barath R K PDKV | 411623149004")
+st.caption("👮 Project PRJ-005 | Police Rulebook Assistant | Barath R K PDKV | 411623149004")
