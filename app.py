@@ -3,6 +3,7 @@ import tempfile
 import os
 import requests
 from typing import List, Dict
+import re
 
 # LangChain imports
 from langchain_community.document_loaders import PyPDFLoader
@@ -17,7 +18,7 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# Dark Theme with Red/Green Accents CSS
+# Dark Theme CSS
 st.markdown("""
 <style>
     .stApp {
@@ -215,12 +216,12 @@ st.markdown("""
 st.markdown("""
 <div class="main-header">
     <h1>👮 Police Rulebook Assistant</h1>
-    <p>Complete Legal Reference for Police Procedures, Rights & Laws</p>
+    <p>Complete Legal Reference for CrPC, IPC, Police Procedures & Rights</p>
     <div class="badge-container">
-        <span class="badge-red">🔴 Context-Aware Search</span>
-        <span class="badge-green">🟢 Full Document Analysis</span>
-        <span class="badge-red">🔴 Smart Matching</span>
-        <span class="badge-green">🟢 Accurate Answers</span>
+        <span class="badge-red">🔴 Deep Document Search</span>
+        <span class="badge-green">🟢 Exact Answer Extraction</span>
+        <span class="badge-red">🔴 Context-Aware</span>
+        <span class="badge-green">🟢 No Source Display</span>
     </div>
 </div>
 """, unsafe_allow_html=True)
@@ -301,8 +302,8 @@ def process_uploaded_pdf(uploaded_file):
         if not documents:
             return []
         splitter = RecursiveCharacterTextSplitter(
-            chunk_size=1000,
-            chunk_overlap=200,
+            chunk_size=800,
+            chunk_overlap=150,
             separators=["\n\n", "\n", ". ", " ", ""]
         )
         chunks = splitter.split_documents(documents)
@@ -334,8 +335,8 @@ def load_all_documents():
             model_name="sentence-transformers/all-MiniLM-L6-v2"
         )
     splitter = RecursiveCharacterTextSplitter(
-        chunk_size=1000,
-        chunk_overlap=200,
+        chunk_size=800,
+        chunk_overlap=150,
         separators=["\n\n", "\n", ". ", " ", ""]
     )
     for pdf_info in pdf_files:
@@ -350,104 +351,85 @@ def load_all_documents():
             loaded_files.append(pdf_info['name'])
     return all_chunks, loaded_files
 
-def semantic_search(query: str, all_chunks: List, top_k: int = 20) -> List:
-    """Enhanced semantic search with phrase matching"""
+def extract_exact_answer(query: str, all_chunks: List) -> str:
+    """Extract exact answer from chunks without showing sources"""
     if not all_chunks:
-        return []
+        return None
     
     query_lower = query.lower()
-    query_words = set(query_lower.split())
-    stop_words = {'the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 'of', 'with', 'by', 'is', 'are', 'was', 'were', 'be', 'been', 'being', 'have', 'has', 'had', 'having', 'do', 'does', 'did', 'doing', 'what', 'when', 'where', 'which', 'who', 'whom', 'this', 'that', 'these', 'those'}
-    important_words = [w for w in query_words if w not in stop_words and len(w) > 2]
     
-    # Also extract common phrases from query (like "without warrant", "arrest of a person")
-    query_phrases = []
-    if "without warrant" in query_lower:
-        query_phrases.append("without warrant")
-    if "arrest of a person" in query_lower:
-        query_phrases.append("arrest of a person")
-    if "right to" in query_lower:
-        query_phrases.append("right to")
+    # Define keywords and their synonyms for better matching
+    keyword_map = {
+        "arrest without warrant": ["arrest", "without warrant", "cognizable", "section 41", "police can arrest"],
+        "cognizable offence": ["cognizable", "section 2(c)", "police can arrest", "without warrant"],
+        "bailable offence": ["bailable", "non-bailable", "bail", "section 2(a)"]
+    }
     
+    # Find which category the query belongs to
+    search_terms = []
+    for category, terms in keyword_map.items():
+        if category in query_lower or any(term in query_lower for term in terms):
+            search_terms = terms
+            break
+    
+    if not search_terms:
+        # Use query words as search terms
+        search_terms = query_lower.split()
+    
+    # Search all chunks
     scored_chunks = []
     for chunk in all_chunks:
-        content = chunk.page_content.lower()
+        content = chunk.page_content
+        content_lower = content.lower()
         score = 0
         
-        # Match important words
-        if important_words:
-            word_matches = sum(1 for word in important_words if word in content)
-            score += (word_matches / len(important_words)) * 0.6
+        # Score based on search terms
+        for term in search_terms:
+            if len(term) > 3 and term in content_lower:
+                score += 1
         
-        # Match exact phrases (higher weight)
-        for phrase in query_phrases:
-            if phrase in content:
-                score += 0.4
-        
-        # Bonus for full query match
-        if query_lower in content:
-            score += 0.3
+        # Bonus for exact phrase match
+        if query_lower in content_lower:
+            score += 3
         
         if score > 0:
             scored_chunks.append((score, chunk))
     
+    # Sort by score
     scored_chunks.sort(reverse=True, key=lambda x: x[0])
-    return [chunk for score, chunk in scored_chunks[:top_k]]
-
-def extract_relevant_answer(query: str, relevant_chunks: List) -> str:
-    """Extract only the relevant answer without source info"""
-    if not relevant_chunks:
-        return None
     
-    query_lower = query.lower()
-    query_words = set(query_lower.split())
-    
-    # Extract key phrases from query for better matching
-    key_phrases = []
-    if "without warrant" in query_lower:
-        key_phrases.append("without warrant")
-    if "arrest" in query_lower:
-        key_phrases.append("arrest")
-    
-    best_answer = ""
-    best_score = 0
-    
-    for chunk in relevant_chunks:
-        content = chunk.page_content
-        content_lower = content.lower()
+    if scored_chunks:
+        # Get best chunk
+        best_chunk = scored_chunks[0][1]
+        content = best_chunk.page_content
         
-        # Calculate relevance score
-        score = 0
-        for phrase in key_phrases:
-            if phrase in content_lower:
-                score += 2
+        # Try to find answer in context
+        sentences = re.split(r'[.!?]\s+', content)
         
-        for word in query_words:
-            if len(word) > 3 and word in content_lower:
-                score += 1
+        # Find sentences containing search terms
+        relevant_sentences = []
+        for i, sentence in enumerate(sentences):
+            sentence_lower = sentence.lower()
+            if any(term in sentence_lower for term in search_terms):
+                # Get context (sentence before and after)
+                start = max(0, i-1)
+                end = min(len(sentences), i+3)
+                context = ". ".join(sentences[start:end])
+                if context not in relevant_sentences:
+                    relevant_sentences.append(context)
         
-        if score > best_score:
-            best_score = score
-            # Extract relevant sentences
-            sentences = content.split('. ')
-            relevant_sentences = []
-            for sentence in sentences:
-                if len(sentence) > 30:
-                    if any(phrase in sentence.lower() for phrase in key_phrases):
-                        relevant_sentences.append(sentence.strip())
-                    elif any(word in sentence.lower() for word in query_words):
-                        relevant_sentences.append(sentence.strip())
-            
-            if relevant_sentences:
-                best_answer = ". ".join(relevant_sentences[:4])
-            else:
-                best_answer = content[:600]
-    
-    if best_answer:
-        # Clean up and ensure proper ending
-        if not best_answer.endswith('.') and not best_answer.endswith('?'):
-            best_answer += '.'
-        return best_answer
+        if relevant_sentences:
+            answer = ". ".join(relevant_sentences[:3])
+        else:
+            # Take first 500 chars of best chunk
+            answer = content[:500]
+        
+        # Clean up answer
+        answer = answer.strip()
+        if not answer.endswith('.') and not answer.endswith('?'):
+            answer += '.'
+        
+        return answer
     
     return None
 
@@ -544,7 +526,7 @@ for message in st.session_state.messages:
     with st.chat_message(message["role"]):
         st.markdown(message["content"])
 
-prompt = st.chat_input("Ask about legal procedures, rights, arrests, complaints...")
+prompt = st.chat_input("Ask about legal procedures, arrest, bail, complaints...")
 
 if prompt:
     st.session_state.messages.append({"role": "user", "content": prompt})
@@ -556,22 +538,15 @@ if prompt:
             response = "⚠️ No documents loaded. Please upload PDFs to continue."
             st.markdown(response)
         else:
-            with st.spinner("🔍 Analyzing legal documents..."):
+            with st.spinner("🔍 Searching through legal documents..."):
                 try:
-                    relevant = semantic_search(prompt, st.session_state.all_chunks, top_k=15)
+                    answer = extract_exact_answer(prompt, st.session_state.all_chunks)
                     
-                    if relevant:
-                        answer = extract_relevant_answer(prompt, relevant)
-                        
-                        if answer:
-                            st.markdown(f'<div class="answer-section">{answer}</div>', unsafe_allow_html=True)
-                            st.session_state.messages.append({"role": "assistant", "content": answer})
-                        else:
-                            response = "No specific information found. Try rephrasing your question or adding more relevant documents."
-                            st.markdown(response)
-                            st.session_state.messages.append({"role": "assistant", "content": response})
+                    if answer:
+                        st.markdown(f'<div class="answer-section">{answer}</div>', unsafe_allow_html=True)
+                        st.session_state.messages.append({"role": "assistant", "content": answer})
                     else:
-                        response = "No relevant information found. Try different keywords or upload more documents."
+                        response = "No specific information found. Try rephrasing your question or adding more relevant documents."
                         st.markdown(response)
                         st.session_state.messages.append({"role": "assistant", "content": response})
                         
