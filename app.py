@@ -2,7 +2,7 @@ import streamlit as st
 import tempfile
 import os
 
-# CORRECT IMPORTS for LangChain
+# LangChain imports
 from langchain_community.document_loaders import PyPDFLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_community.embeddings import HuggingFaceEmbeddings
@@ -10,7 +10,7 @@ from langchain_community.vectorstores import FAISS
 
 st.set_page_config(page_title="Police Rulebook Assistant", page_icon="👮", layout="wide")
 
-# Custom CSS for better UI
+# Custom CSS for clean UI
 st.markdown("""
 <style>
     .stChatMessage {
@@ -26,18 +26,19 @@ st.markdown("""
         color: white;
         margin-bottom: 2rem;
     }
-    .confidence-high {
-        color: #28a745;
-        font-weight: bold;
+    .answer-text {
+        font-size: 1rem;
+        line-height: 1.5;
     }
-    .confidence-low {
-        color: #dc3545;
-        font-weight: bold;
+    .source-line {
+        font-size: 0.8rem;
+        color: #666;
+        margin-top: 0.5rem;
     }
 </style>
 """, unsafe_allow_html=True)
 
-# Header
+# Header with police emoji only
 st.markdown("""
 <div class="main-header">
     <h1>👮 Police Rulebook Assistant</h1>
@@ -57,7 +58,7 @@ if "embeddings_loaded" not in st.session_state:
 
 # Load embeddings once
 if not st.session_state.embeddings_loaded:
-    with st.spinner("🔄 Loading AI model (first time only)... This may take 1-2 minutes."):
+    with st.spinner("Loading AI model... This may take 1-2 minutes."):
         try:
             st.session_state.embeddings = HuggingFaceEmbeddings(
                 model_name="sentence-transformers/all-MiniLM-L6-v2"
@@ -68,12 +69,12 @@ if not st.session_state.embeddings_loaded:
 
 # Sidebar
 with st.sidebar:
-    st.markdown("## 📁 Document Management")
+    st.markdown("## Document Management")
     
-    uploaded_file = st.file_uploader("📄 Upload Police PDF", type=["pdf"], help="Upload any police procedure document")
+    uploaded_file = st.file_uploader("Upload Police PDF", type=["pdf"], help="Upload any police procedure document")
     
-    if uploaded_file and st.button("📤 Upload to Knowledge Base", type="primary", use_container_width=True):
-        with st.spinner("📖 Processing document..."):
+    if uploaded_file and st.button("Upload to Knowledge Base", type="primary", use_container_width=True):
+        with st.spinner("Processing document..."):
             try:
                 with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp:
                     tmp.write(uploaded_file.read())
@@ -101,47 +102,42 @@ with st.sidebar:
                 
                 st.session_state.documents.extend(chunks)
                 
-                st.success(f"✅ Successfully uploaded **{uploaded_file.name}**")
-                st.info(f"📊 Created **{len(chunks)}** text chunks")
+                st.success(f"Successfully uploaded {uploaded_file.name}")
+                st.info(f"Created {len(chunks)} text chunks")
                 
                 os.unlink(tmp_path)
                 st.rerun()
                 
             except Exception as e:
-                st.error(f"❌ Error: {str(e)[:200]}")
+                st.error(f"Error: {str(e)[:200]}")
     
     st.divider()
     
     # Document list
-    st.markdown("## 📚 Uploaded Documents")
+    st.markdown("## Uploaded Documents")
     if st.session_state.documents:
         unique_sources = list(set([doc.metadata.get("source", "Unknown") for doc in st.session_state.documents]))
         for source in unique_sources:
             chunk_count = sum(1 for doc in st.session_state.documents if doc.metadata.get("source") == source)
-            st.markdown(f"📄 **{source}**")
-            st.caption(f"   {chunk_count} chunks")
+            st.markdown(f"**{source}**")
+            st.caption(f"{chunk_count} chunks")
     else:
         st.info("No documents uploaded yet")
     
     st.divider()
     
     # System status
-    st.markdown("## 📊 System Status")
-    col1, col2 = st.columns(2)
-    with col1:
-        st.metric("📄 Documents", len(st.session_state.documents) if st.session_state.documents else 0)
-    with col2:
-        if st.session_state.vector_store:
-            st.markdown("✅ **Vector Store**")
-            st.caption("FAISS Ready")
-        else:
-            st.markdown("⏳ **Vector Store**")
-            st.caption("Waiting for upload")
+    st.markdown("## System Status")
+    if st.session_state.vector_store:
+        st.success("Vector Store Ready")
+        st.caption(f"Documents: {len(st.session_state.documents)} chunks")
+    else:
+        st.warning("Upload a document to start")
     
     st.divider()
     
     # Sample questions
-    st.markdown("## 💡 Sample Questions")
+    st.markdown("## Sample Questions")
     sample_queries = [
         "How to file a police complaint?",
         "What is the procedure for traffic violation?",
@@ -150,34 +146,17 @@ with st.sidebar:
     ]
     
     for q in sample_queries:
-        if st.button(f"🔍 {q}", key=f"sample_{q[:20]}", use_container_width=True):
+        if st.button(q, key=f"sample_{q[:20]}", use_container_width=True):
             st.session_state.prompt = q
             st.rerun()
 
 # Main chat area
-st.markdown("## 💬 Ask Questions from Police Rulebook")
+st.markdown("## Ask Questions from Police Rulebook")
 
-# Display chat history
+# Display chat history (without sources expander)
 for message in st.session_state.messages:
     with st.chat_message(message["role"]):
         st.markdown(message["content"])
-        
-        if "sources" in message and message["sources"]:
-            with st.expander("📚 View Sources & Citations"):
-                for source in message["sources"]:
-                    st.markdown(f"📄 **File:** `{source.get('filename', 'Unknown')}`")
-                    if source.get("page"):
-                        st.markdown(f"📑 **Page:** {source.get('page')}")
-                    st.markdown(f"📝 **Excerpt:**")
-                    st.markdown(f"> {source.get('excerpt', '')[:200]}...")
-                    st.divider()
-        
-        if "confidence" in message:
-            conf = message["confidence"]
-            if conf > 0.7:
-                st.markdown(f'<span class="confidence-high">🎯 Confidence: {conf:.0%}</span>', unsafe_allow_html=True)
-            else:
-                st.markdown(f'<span class="confidence-low">⚠️ Confidence: {conf:.0%}</span>', unsafe_allow_html=True)
 
 # Handle prompt
 if "prompt" in st.session_state:
@@ -196,84 +175,89 @@ if prompt:
     # Get assistant response
     with st.chat_message("assistant"):
         if st.session_state.vector_store is None:
-            response_message = "⚠️ **No documents uploaded yet.**\n\nPlease upload a PDF document using the sidebar to start asking questions."
+            response_message = "No documents uploaded yet. Please upload a PDF document using the sidebar to start asking questions."
             st.markdown(response_message)
             st.session_state.messages.append({"role": "assistant", "content": response_message})
         else:
-            with st.spinner("🔍 Searching through police rulebook..."):
+            with st.spinner("Searching police rulebook..."):
                 try:
-                    # FIXED: Use invoke() instead of get_relevant_documents()
-                    retriever = st.session_state.vector_store.as_retriever(search_kwargs={"k": 3})
+                    # Retrieve relevant documents - get top 3 with high relevance
+                    retriever = st.session_state.vector_store.as_retriever(
+                        search_kwargs={"k": 5}  # Get 5 candidates
+                    )
                     relevant_docs = retriever.invoke(prompt)
                     
                     if relevant_docs:
-                        # Calculate confidence
+                        # Calculate relevance score for each document
                         query_words = set(prompt.lower().split())
-                        all_text = " ".join([doc.page_content for doc in relevant_docs])
-                        all_words = set(all_text.lower().split())
+                        scored_docs = []
                         
-                        if len(query_words) > 0:
-                            common = len(query_words & all_words)
-                            confidence = min(common / len(query_words), 0.95)
-                        else:
-                            confidence = 0.0
-                        
-                        # Build response
-                        response_parts = ["📋 **Based on the Police Rulebook:**\n"]
-                        sources = []
-                        
-                        for i, doc in enumerate(relevant_docs):
-                            # Get best sentence
-                            sentences = doc.page_content.split('. ')
-                            best_sentence = ""
-                            max_overlap = 0
-                            for sentence in sentences:
-                                sentence_words = set(sentence.lower().split())
-                                overlap = len(query_words & sentence_words)
-                                if overlap > max_overlap:
-                                    max_overlap = overlap
-                                    best_sentence = sentence
-                            
-                            if best_sentence:
-                                response_parts.append(f"**Source {i+1}:** {best_sentence}.")
+                        for doc in relevant_docs:
+                            doc_words = set(doc.page_content.lower().split())
+                            if len(query_words) > 0:
+                                overlap = len(query_words & doc_words)
+                                score = overlap / len(query_words)
                             else:
-                                response_parts.append(f"**Source {i+1}:** {doc.page_content[:300]}...")
+                                score = 0
+                            scored_docs.append((score, doc))
+                        
+                        # Sort by score and filter low relevance (below 0.3)
+                        scored_docs.sort(reverse=True, key=lambda x: x[0])
+                        
+                        # Only keep high relevance answers (score >= 0.3)
+                        high_relevance_docs = [(score, doc) for score, doc in scored_docs if score >= 0.3]
+                        
+                        if high_relevance_docs:
+                            # Use only the top 2 most relevant documents
+                            top_docs = high_relevance_docs[:2]
                             
-                            source_info = {
-                                "filename": doc.metadata.get("source", "Unknown"),
-                                "page": doc.metadata.get("page", 1),
-                                "excerpt": doc.page_content[:200] + "..."
-                            }
-                            sources.append(source_info)
-                            response_parts.append(f"📄 *Source: {source_info['filename']} (Page {source_info['page']})*\n")
-                        
-                        response_message = "\n\n".join(response_parts)
-                        st.markdown(response_message)
-                        
-                        # Show confidence
-                        if confidence > 0.7:
-                            st.markdown(f'<span class="confidence-high">✅ High confidence: {confidence:.0%}</span>', unsafe_allow_html=True)
+                            # Build response
+                            response_parts = []
+                            
+                            for score, doc in top_docs:
+                                # Extract the most relevant sentence from the document
+                                sentences = doc.page_content.split('. ')
+                                best_sentence = ""
+                                best_score = 0
+                                
+                                for sentence in sentences:
+                                    sentence_words = set(sentence.lower().split())
+                                    overlap = len(query_words & sentence_words)
+                                    if overlap > best_score:
+                                        best_score = overlap
+                                        best_sentence = sentence
+                                
+                                if best_sentence and best_score > 0:
+                                    response_parts.append(best_sentence)
+                                else:
+                                    # Take first 400 chars if no good sentence found
+                                    response_parts.append(doc.page_content[:400])
+                            
+                            # Combine with proper formatting
+                            if len(response_parts) == 1:
+                                response_message = response_parts[0]
+                            else:
+                                response_message = "\n\n".join(response_parts)
+                            
+                            st.markdown(response_message)
+                            
+                            # Add simple source line (no expander)
+                            source_files = list(set([doc.metadata.get("source", "Unknown") for score, doc in top_docs]))
+                            if source_files:
+                                st.caption(f"Source: {', '.join(source_files)}")
+                            
+                            # Save to history
+                            st.session_state.messages.append({
+                                "role": "assistant",
+                                "content": response_message
+                            })
                         else:
-                            st.markdown(f'<span class="confidence-low">⚠️ Low confidence: {confidence:.0%} - Try rephrasing</span>', unsafe_allow_html=True)
-                        
-                        # Show sources expander
-                        with st.expander("📚 View Detailed Sources"):
-                            for source in sources:
-                                st.markdown(f"**📄 File:** `{source['filename']}`")
-                                st.markdown(f"**📑 Page:** {source['page']}")
-                                st.markdown(f"**📝 Excerpt:**")
-                                st.markdown(f"> {source['excerpt']}")
-                                st.divider()
-                        
-                        # Save to history
-                        st.session_state.messages.append({
-                            "role": "assistant",
-                            "content": response_message,
-                            "sources": sources,
-                            "confidence": confidence
-                        })
+                            # No high relevance answers found
+                            response_message = "I couldn't find highly relevant information in the police rulebook. Please try rephrasing your question or upload more relevant documents."
+                            st.markdown(response_message)
+                            st.session_state.messages.append({"role": "assistant", "content": response_message})
                     else:
-                        response_message = "❌ **No relevant information found.**\n\nPlease try rephrasing your question or upload more relevant documents."
+                        response_message = "No information found. Please try rephrasing your question."
                         st.markdown(response_message)
                         st.session_state.messages.append({"role": "assistant", "content": response_message})
                         
@@ -285,10 +269,8 @@ if prompt:
 st.markdown("---")
 col1, col2, col3 = st.columns(3)
 with col1:
-    st.caption("🏆 **Project PRJ-005** | Police Rulebook Assistant")
+    st.caption("Project PRJ-005 | Police Rulebook Assistant")
 with col2:
-    st.caption("👨‍🎓 **Barath R K PDKV** | 411623149004")
+    st.caption("Barath R K PDKV | 411623149004")
 with col3:
-    st.caption("✅ **Week 1 + Week 2 Complete** | RAG System")
-
-st.caption("🔧 **Features:** PDF Upload | RAG Search | Citations | FAISS Vector Store")
+    st.caption("Week 1 + Week 2 Complete | RAG System")
