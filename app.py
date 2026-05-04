@@ -2,7 +2,7 @@ import streamlit as st
 import tempfile
 import os
 import requests
-from typing import List, Dict
+from typing import List
 import re
 
 # LangChain imports
@@ -18,197 +18,34 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# Dark Theme CSS
+# Dark Theme CSS (same as before, keeping it short)
 st.markdown("""
 <style>
-    .stApp {
-        background: linear-gradient(135deg, #0a0e1a 0%, #0f1119 100%);
-    }
-    
-    .main-header {
-        text-align: center;
-        padding: 2rem;
-        background: linear-gradient(135deg, #0a0e1a 0%, #1a1f2e 100%);
-        border-radius: 20px;
-        margin-bottom: 2rem;
-        border: 1px solid #21262d;
-        position: relative;
-        overflow: hidden;
-    }
-    
-    .main-header::before {
-        content: '';
-        position: absolute;
-        top: 0;
-        left: 0;
-        right: 0;
-        height: 3px;
-        background: linear-gradient(90deg, #dc2626, #10b981, #dc2626);
-    }
-    
-    .main-header h1 {
-        font-size: 2.2rem;
-        font-weight: 700;
-        margin-bottom: 0.5rem;
-        background: linear-gradient(135deg, #fff 0%, #dc2626 50%, #10b981 100%);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-        background-clip: text;
-    }
-    
-    .main-header p {
-        font-size: 0.95rem;
-        color: #8b949e;
-    }
-    
-    .badge-container {
-        display: inline-flex;
-        gap: 0.5rem;
-        margin-top: 0.8rem;
-    }
-    
-    .badge-red {
-        background: rgba(220,38,38,0.2);
-        color: #ef4444;
-        padding: 0.2rem 1rem;
-        border-radius: 50px;
-        font-size: 0.7rem;
-        border: 1px solid rgba(220,38,38,0.3);
-    }
-    
-    .badge-green {
-        background: rgba(16,185,129,0.2);
-        color: #10b981;
-        padding: 0.2rem 1rem;
-        border-radius: 50px;
-        font-size: 0.7rem;
-        border: 1px solid rgba(16,185,129,0.3);
-    }
-    
-    div[data-testid="stChatMessage"][data-testid*="user"] {
-        background: linear-gradient(135deg, #1a0f0f 0%, #1f1414 100%);
-        border: 1px solid rgba(220,38,38,0.3);
-        color: #f0f0f0 !important;
-        border-radius: 20px 20px 5px 20px;
-    }
-    
-    div[data-testid="stChatMessage"][data-testid*="assistant"] {
-        background: linear-gradient(135deg, #0f1a14 0%, #0d1f18 100%);
-        border: 1px solid rgba(16,185,129,0.3);
-        border-radius: 20px 20px 20px 5px;
-    }
-    
-    [data-testid="stSidebar"] {
-        background: linear-gradient(180deg, #0a0e1a 0%, #0d1117 100%);
-        border-right: 1px solid #21262d;
-    }
-    
-    .stat-card-red {
-        background: #131823;
-        border-radius: 15px;
-        padding: 1rem;
-        margin: 0.8rem 0;
-        text-align: center;
-        border: 1px solid rgba(220,38,38,0.3);
-    }
-    
-    .stat-card-green {
-        background: #131823;
-        border-radius: 15px;
-        padding: 1rem;
-        margin: 0.8rem 0;
-        text-align: center;
-        border: 1px solid rgba(16,185,129,0.3);
-    }
-    
-    .stat-number-red {
-        font-size: 2rem;
-        font-weight: 700;
-        color: #dc2626;
-    }
-    
-    .stat-number-green {
-        font-size: 2rem;
-        font-weight: 700;
-        color: #10b981;
-    }
-    
-    .stat-label {
-        font-size: 0.7rem;
-        color: #8b949e;
-        margin-top: 0.3rem;
-    }
-    
-    .doc-badge {
-        background: rgba(16,185,129,0.15);
-        color: #10b981;
-        padding: 0.3rem 0.8rem;
-        border-radius: 20px;
-        font-size: 0.7rem;
-        display: inline-block;
-        margin: 0.25rem;
-        border: 1px solid rgba(16,185,129,0.3);
-    }
-    
-    .upload-card {
-        background: #131823;
-        border-radius: 15px;
-        padding: 1rem;
-        margin-bottom: 1rem;
-        border: 2px dashed rgba(220,38,38,0.4);
-        text-align: center;
-    }
-    
-    .stButton button {
-        background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
-        color: white;
-        border: none;
-        border-radius: 10px;
-        padding: 0.5rem 1rem;
-        font-weight: 600;
-        width: 100%;
-    }
-    
-    .stButton button:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 5px 15px rgba(220,38,38,0.4);
-    }
-    
-    .answer-section {
-        background: linear-gradient(135deg, #0f1a14 0%, #0d1f18 100%);
-        padding: 1.2rem;
-        border-radius: 15px;
-        margin: 0.5rem 0;
-        line-height: 1.7;
-        border-left: 4px solid #10b981;
-        color: #e6edf3;
-    }
-    
-    .stTextInput input {
-        border-radius: 30px !important;
-        border: 2px solid #21262d !important;
-        background: #0d1117 !important;
-        color: #e6edf3 !important;
-        padding: 0.7rem 1.2rem !important;
-    }
-    
-    .stTextInput input:focus {
-        border-color: #10b981 !important;
-        box-shadow: 0 0 0 2px rgba(16,185,129,0.2) !important;
-    }
-    
-    .footer {
-        text-align: center;
-        padding: 1.5rem;
-        color: #8b949e;
-        font-size: 0.75rem;
-        border-top: 1px solid #21262d;
-        margin-top: 2rem;
-    }
-    
-    .stProgress > div > div {
-        background: linear-gradient(90deg, #dc2626, #10b981);
-    }
+    .stApp { background: linear-gradient(135deg, #0a0e1a 0%, #0f1119 100%); }
+    .main-header { text-align: center; padding: 2rem; background: linear-gradient(135deg, #0a0e1a 0%, #1a1f2e 100%); border-radius: 20px; margin-bottom: 2rem; border: 1px solid #21262d; position: relative; overflow: hidden; }
+    .main-header::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px; background: linear-gradient(90deg, #dc2626, #10b981, #dc2626); }
+    .main-header h1 { font-size: 2.2rem; font-weight: 700; margin-bottom: 0.5rem; background: linear-gradient(135deg, #fff 0%, #dc2626 50%, #10b981 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+    .main-header p { font-size: 0.95rem; color: #8b949e; }
+    .badge-container { display: inline-flex; gap: 0.5rem; margin-top: 0.8rem; }
+    .badge-red { background: rgba(220,38,38,0.2); color: #ef4444; padding: 0.2rem 1rem; border-radius: 50px; font-size: 0.7rem; border: 1px solid rgba(220,38,38,0.3); }
+    .badge-green { background: rgba(16,185,129,0.2); color: #10b981; padding: 0.2rem 1rem; border-radius: 50px; font-size: 0.7rem; border: 1px solid rgba(16,185,129,0.3); }
+    div[data-testid="stChatMessage"][data-testid*="user"] { background: linear-gradient(135deg, #1a0f0f 0%, #1f1414 100%); border: 1px solid rgba(220,38,38,0.3); color: #f0f0f0 !important; border-radius: 20px 20px 5px 20px; }
+    div[data-testid="stChatMessage"][data-testid*="assistant"] { background: linear-gradient(135deg, #0f1a14 0%, #0d1f18 100%); border: 1px solid rgba(16,185,129,0.3); border-radius: 20px 20px 20px 5px; }
+    [data-testid="stSidebar"] { background: linear-gradient(180deg, #0a0e1a 0%, #0d1117 100%); border-right: 1px solid #21262d; }
+    .stat-card-red { background: #131823; border-radius: 15px; padding: 1rem; margin: 0.8rem 0; text-align: center; border: 1px solid rgba(220,38,38,0.3); }
+    .stat-card-green { background: #131823; border-radius: 15px; padding: 1rem; margin: 0.8rem 0; text-align: center; border: 1px solid rgba(16,185,129,0.3); }
+    .stat-number-red { font-size: 2rem; font-weight: 700; color: #dc2626; }
+    .stat-number-green { font-size: 2rem; font-weight: 700; color: #10b981; }
+    .stat-label { font-size: 0.7rem; color: #8b949e; margin-top: 0.3rem; }
+    .doc-badge { background: rgba(16,185,129,0.15); color: #10b981; padding: 0.3rem 0.8rem; border-radius: 20px; font-size: 0.7rem; display: inline-block; margin: 0.25rem; border: 1px solid rgba(16,185,129,0.3); }
+    .upload-card { background: #131823; border-radius: 15px; padding: 1rem; margin-bottom: 1rem; border: 2px dashed rgba(220,38,38,0.4); text-align: center; }
+    .stButton button { background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%); color: white; border: none; border-radius: 10px; padding: 0.5rem 1rem; font-weight: 600; width: 100%; }
+    .stButton button:hover { transform: translateY(-2px); box-shadow: 0 5px 15px rgba(220,38,38,0.4); }
+    .answer-section { background: linear-gradient(135deg, #0f1a14 0%, #0d1f18 100%); padding: 1.2rem; border-radius: 15px; margin: 0.5rem 0; line-height: 1.7; border-left: 4px solid #10b981; color: #e6edf3; }
+    .stTextInput input { border-radius: 30px !important; border: 2px solid #21262d !important; background: #0d1117 !important; color: #e6edf3 !important; padding: 0.7rem 1.2rem !important; }
+    .stTextInput input:focus { border-color: #10b981 !important; box-shadow: 0 0 0 2px rgba(16,185,129,0.2) !important; }
+    .footer { text-align: center; padding: 1.5rem; color: #8b949e; font-size: 0.75rem; border-top: 1px solid #21262d; margin-top: 2rem; }
+    .stProgress > div > div { background: linear-gradient(90deg, #dc2626, #10b981); }
 </style>
 """, unsafe_allow_html=True)
 
@@ -218,10 +55,10 @@ st.markdown("""
     <h1>👮 Police Rulebook Assistant</h1>
     <p>Complete Legal Reference for CrPC, IPC, Police Procedures & Rights</p>
     <div class="badge-container">
-        <span class="badge-red">🔴 Deep Document Search</span>
-        <span class="badge-green">🟢 Exact Answer Extraction</span>
-        <span class="badge-red">🔴 Context-Aware</span>
-        <span class="badge-green">🟢 No Source Display</span>
+        <span class="badge-red">🔴 Direct Answers</span>
+        <span class="badge-green">🟢 No Extra Text</span>
+        <span class="badge-red">🔴 Precise Matching</span>
+        <span class="badge-green">🟢 Clean Output</span>
     </div>
 </div>
 """, unsafe_allow_html=True)
@@ -351,30 +188,30 @@ def load_all_documents():
             loaded_files.append(pdf_info['name'])
     return all_chunks, loaded_files
 
-def extract_exact_answer(query: str, all_chunks: List) -> str:
-    """Extract exact answer from chunks without showing sources"""
+def get_direct_answer(query: str, all_chunks: List) -> str:
+    """Get direct answer without any extra text"""
     if not all_chunks:
         return None
     
     query_lower = query.lower()
     
-    # Define keywords and their synonyms for better matching
-    keyword_map = {
-        "arrest without warrant": ["arrest", "without warrant", "cognizable", "section 41", "police can arrest"],
-        "cognizable offence": ["cognizable", "section 2(c)", "police can arrest", "without warrant"],
-        "bailable offence": ["bailable", "non-bailable", "bail", "section 2(a)"]
+    # Define question patterns and expected answer markers
+    question_patterns = {
+        "arrest without warrant": ["arrest without warrant", "section 41", "cognizable offence", "police officer may without"],
+        "how to arrest": ["arrest any person", "shall arrest", "mode of arrest", "section 41", "police officer may"],
+        "bail": ["bailable", "non-bailable", "bail", "section 436"],
+        "cognizable offence": ["cognizable", "section 2(c)", "police can arrest"]
     }
     
-    # Find which category the query belongs to
+    # Find matching pattern
     search_terms = []
-    for category, terms in keyword_map.items():
-        if category in query_lower or any(term in query_lower for term in terms):
+    for pattern, terms in question_patterns.items():
+        if pattern in query_lower or any(term in query_lower for term in terms):
             search_terms = terms
             break
     
     if not search_terms:
-        # Use query words as search terms
-        search_terms = query_lower.split()
+        search_terms = [w for w in query_lower.split() if len(w) > 3]
     
     # Search all chunks
     scored_chunks = []
@@ -383,49 +220,52 @@ def extract_exact_answer(query: str, all_chunks: List) -> str:
         content_lower = content.lower()
         score = 0
         
-        # Score based on search terms
         for term in search_terms:
-            if len(term) > 3 and term in content_lower:
+            if term in content_lower:
                 score += 1
         
-        # Bonus for exact phrase match
-        if query_lower in content_lower:
-            score += 3
+        # Higher score for content that starts with answer format (Q: or Ans:)
+        if "ans)" in content_lower or "answer:" in content_lower or "section" in content_lower:
+            score += 2
         
         if score > 0:
             scored_chunks.append((score, chunk))
     
-    # Sort by score
     scored_chunks.sort(reverse=True, key=lambda x: x[0])
     
     if scored_chunks:
-        # Get best chunk
         best_chunk = scored_chunks[0][1]
         content = best_chunk.page_content
         
-        # Try to find answer in context
+        # Extract relevant sentences - find where answer starts
         sentences = re.split(r'[.!?]\s+', content)
         
-        # Find sentences containing search terms
-        relevant_sentences = []
+        # Find the sentence that contains answer keywords
+        answer_start_idx = -1
         for i, sentence in enumerate(sentences):
             sentence_lower = sentence.lower()
+            # Look for answer markers
+            if any(marker in sentence_lower for marker in ["ans)", "answer:", "section"]):
+                answer_start_idx = i
+                break
+            # Also check if sentence directly answers the question
             if any(term in sentence_lower for term in search_terms):
-                # Get context (sentence before and after)
-                start = max(0, i-1)
-                end = min(len(sentences), i+3)
-                context = ". ".join(sentences[start:end])
-                if context not in relevant_sentences:
-                    relevant_sentences.append(context)
+                if answer_start_idx == -1:
+                    answer_start_idx = i
         
-        if relevant_sentences:
-            answer = ". ".join(relevant_sentences[:3])
+        if answer_start_idx >= 0:
+            # Take answer from that sentence onwards (max 5 sentences)
+            answer_sentences = sentences[answer_start_idx:answer_start_idx+5]
+            answer = ". ".join(answer_sentences)
         else:
-            # Take first 500 chars of best chunk
-            answer = content[:500]
+            # Take first 3 sentences
+            answer = ". ".join(sentences[:3])
         
-        # Clean up answer
+        # Clean up
         answer = answer.strip()
+        answer = re.sub(r'Q\d+\s+.*?Ans\)', '', answer)  # Remove Q numbers
+        answer = re.sub(r'Q\.\d+\s+', '', answer)  # Remove Q.1 patterns
+        
         if not answer.endswith('.') and not answer.endswith('?'):
             answer += '.'
         
@@ -526,7 +366,7 @@ for message in st.session_state.messages:
     with st.chat_message(message["role"]):
         st.markdown(message["content"])
 
-prompt = st.chat_input("Ask about legal procedures, arrest, bail, complaints...")
+prompt = st.chat_input("Ask about arrest, bail, cognizable offences, police procedures...")
 
 if prompt:
     st.session_state.messages.append({"role": "user", "content": prompt})
@@ -538,15 +378,20 @@ if prompt:
             response = "⚠️ No documents loaded. Please upload PDFs to continue."
             st.markdown(response)
         else:
-            with st.spinner("🔍 Searching through legal documents..."):
+            with st.spinner("🔍 Searching for direct answer..."):
                 try:
-                    answer = extract_exact_answer(prompt, st.session_state.all_chunks)
+                    answer = get_direct_answer(prompt, st.session_state.all_chunks)
                     
                     if answer:
+                        # Clean up any remaining unwanted prefixes
+                        answer = re.sub(r'^.*?Answer:', '', answer, flags=re.IGNORECASE)
+                        answer = re.sub(r'^.*?Ans\)', '', answer, flags=re.IGNORECASE)
+                        answer = answer.strip()
+                        
                         st.markdown(f'<div class="answer-section">{answer}</div>', unsafe_allow_html=True)
                         st.session_state.messages.append({"role": "assistant", "content": answer})
                     else:
-                        response = "No specific information found. Try rephrasing your question or adding more relevant documents."
+                        response = "No specific information found. Try rephrasing your question."
                         st.markdown(response)
                         st.session_state.messages.append({"role": "assistant", "content": response})
                         
