@@ -3,6 +3,8 @@ import tempfile
 import os
 import requests
 from typing import List, Dict
+import base64
+from io import BytesIO
 
 # LangChain imports
 from langchain_community.document_loaders import PyPDFLoader
@@ -163,6 +165,16 @@ st.markdown("""
         box-shadow: 0 5px 15px rgba(102,126,234,0.4);
     }
     
+    /* Upload section styling */
+    .upload-section {
+        background: white;
+        padding: 1rem;
+        border-radius: 15px;
+        margin-bottom: 1rem;
+        border: 2px dashed #667eea;
+        text-align: center;
+    }
+    
     /* Input field styling */
     .stTextInput input, .stTextArea textarea {
         border-radius: 25px !important;
@@ -176,10 +188,12 @@ st.markdown("""
         box-shadow: 0 0 0 2px rgba(102,126,234,0.2) !important;
     }
     
-    /* Loading animation */
-    .loading-spinner {
-        text-align: center;
-        padding: 2rem;
+    /* File uploader styling */
+    .stFileUploader {
+        border: 2px dashed #667eea;
+        border-radius: 15px;
+        padding: 1rem;
+        background: #f8f9fa;
     }
     
     /* Footer */
@@ -204,7 +218,7 @@ st.markdown("""
 <div class="main-header">
     <h1>👮 Police Rulebook Assistant</h1>
     <p>Advanced RAG Assistant for Police SOPs, Complaint Manuals & Citizen Procedures</p>
-    <p style="font-size: 0.9rem; margin-top: 0.5rem;">🔍 Searching across all documents | 📚 Complete knowledge base | ⚡ Real-time answers</p>
+    <p style="font-size: 0.9rem; margin-top: 0.5rem;">🔍 Search across all documents | 📤 Upload new PDFs | ⚡ Real-time answers</p>
 </div>
 """, unsafe_allow_html=True)
 
@@ -278,6 +292,44 @@ def load_pdf_from_url(url: str, filename: str) -> List:
         return documents
     except Exception as e:
         return []
+
+def process_uploaded_pdf(uploaded_file):
+    """Process uploaded PDF and add to vector store"""
+    try:
+        with tempfile.NamedTemporaryFile(delete=False, suffix='.pdf') as tmp_file:
+            tmp_file.write(uploaded_file.getvalue())
+            tmp_path = tmp_file.name
+        
+        loader = PyPDFLoader(tmp_path)
+        documents = loader.load()
+        
+        splitter = RecursiveCharacterTextSplitter(
+            chunk_size=1000,
+            chunk_overlap=200,
+            separators=["\n\n", "\n", ". ", " ", ""]
+        )
+        chunks = splitter.split_documents(documents)
+        
+        for j, chunk in enumerate(chunks):
+            chunk.metadata["source"] = uploaded_file.name
+            chunk.metadata["chunk_id"] = j
+            chunk.metadata["total_chunks"] = len(chunks)
+        
+        os.unlink(tmp_path)
+        return chunks
+    except Exception as e:
+        st.error(f"Error processing PDF: {e}")
+        return []
+
+def add_to_vector_store(chunks):
+    """Add chunks to existing vector store"""
+    if st.session_state.vector_store is None:
+        st.session_state.vector_store = FAISS.from_documents(chunks, st.session_state.embeddings)
+    else:
+        st.session_state.vector_store.add_documents(chunks)
+    
+    st.session_state.all_chunks.extend(chunks)
+    st.session_state.total_chunks_count = len(st.session_state.all_chunks)
 
 def load_all_documents():
     """Load ALL PDFs from GitHub Documents folder"""
@@ -422,7 +474,34 @@ with st.sidebar:
     
     st.markdown("---")
     
-    if st.button("🔄 Refresh & Reload", use_container_width=True):
+    # Upload Section
+    st.markdown("## 📤 Upload New PDF")
+    st.markdown('<div class="upload-section">', unsafe_allow_html=True)
+    uploaded_file = st.file_uploader("Choose a PDF file", type=["pdf"], key="pdf_uploader")
+    
+    if uploaded_file:
+        if st.button("📤 Process and Add to Knowledge Base", use_container_width=True):
+            with st.spinner(f"Processing {uploaded_file.name}..."):
+                chunks = process_uploaded_pdf(uploaded_file)
+                if chunks:
+                    if st.session_state.embeddings is None:
+                        st.session_state.embeddings = HuggingFaceEmbeddings(
+                            model_name="sentence-transformers/all-MiniLM-L6-v2"
+                        )
+                    add_to_vector_store(chunks)
+                    if uploaded_file.name not in st.session_state.pdf_list:
+                        st.session_state.pdf_list.append(uploaded_file.name)
+                    st.success(f"✅ Successfully added {uploaded_file.name}!")
+                    st.info(f"📊 Created {len(chunks)} new chunks")
+                    st.balloons()
+                    st.rerun()
+                else:
+                    st.error("Failed to process PDF")
+    st.markdown('</div>', unsafe_allow_html=True)
+    
+    st.markdown("---")
+    
+    if st.button("🔄 Refresh & Reload from GitHub", use_container_width=True):
         st.session_state.documents_loaded = False
         st.session_state.all_chunks = []
         st.session_state.pdf_list = []
@@ -433,14 +512,15 @@ with st.sidebar:
     st.markdown("### 💡 Tips")
     st.markdown("- Ask detailed questions")
     st.markdown("- Be specific for better results")
-    st.markdown("- Use keywords from documents")
+    st.markdown("- Upload new PDFs anytime")
+    st.markdown("- Click Refresh to reload GitHub docs")
 
 # ============================================================
 # LOAD DOCUMENTS
 # ============================================================
 
 if not st.session_state.documents_loaded:
-    with st.spinner("📚 Loading all police documents..."):
+    with st.spinner("📚 Loading all police documents from GitHub..."):
         chunks, loaded_files = load_all_documents()
         
         if chunks:
@@ -451,11 +531,12 @@ if not st.session_state.documents_loaded:
             st.session_state.total_chunks_count = len(chunks)
             
             st.balloons()
-            st.success(f"✅ **Success!** Loaded {len(loaded_files)} documents with {len(chunks)} text chunks")
-            st.info(f"📚 Documents: {', '.join(loaded_files)}")
+            st.success(f"✅ **Success!** Loaded {len(loaded_files)} documents from GitHub with {len(chunks)} text chunks")
+            if loaded_files:
+                st.info(f"📚 GitHub Documents: {', '.join(loaded_files)}")
             st.rerun()
         else:
-            st.error("No PDFs found. Please add PDFs to the 'Documents' folder in GitHub.")
+            st.info("📤 No PDFs found in GitHub 'Documents' folder. You can upload PDFs using the sidebar uploader.")
 
 # ============================================================
 # MAIN CHAT AREA
@@ -475,8 +556,8 @@ if prompt:
         st.markdown(prompt)
     
     with st.chat_message("assistant"):
-        if not st.session_state.documents_loaded:
-            response = "⚠️ **No documents loaded.** Please ensure PDFs are in the 'Documents' folder and click Refresh."
+        if not st.session_state.documents_loaded and st.session_state.total_chunks_count == 0:
+            response = "⚠️ **No documents loaded.** Please upload PDFs using the sidebar uploader or add them to the GitHub 'Documents' folder."
             st.markdown(response)
         else:
             with st.spinner(f"🔍 Searching through {st.session_state.total_chunks_count} chunks across {len(st.session_state.pdf_list)} documents..."):
