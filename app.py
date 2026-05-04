@@ -3,8 +3,6 @@ import tempfile
 import os
 import requests
 from typing import List, Dict
-import base64
-from io import BytesIO
 
 # LangChain imports
 from langchain_community.document_loaders import PyPDFLoader
@@ -13,297 +11,246 @@ from langchain_community.embeddings import HuggingFaceEmbeddings
 from langchain_community.vectorstores import FAISS
 
 st.set_page_config(
-    page_title="Police Rulebook Assistant - Professional Edition",
+    page_title="Police Rulebook Assistant",
     page_icon="👮",
     layout="wide",
     initial_sidebar_state="expanded"
 )
 
-# Premium Professional CSS
+# Police Light Theme CSS
 st.markdown("""
 <style>
-    /* Import Google Fonts */
+    /* Police Light Theme - Professional & Clean */
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
     
     * {
         font-family: 'Inter', sans-serif;
     }
     
-    /* Main container */
-    .main {
-        background: #f0f2f6;
+    /* Main background */
+    .stApp {
+        background: linear-gradient(135deg, #f5f7fc 0%, #e8eef5 100%);
     }
     
-    /* Animated Header */
+    /* Header - Police style */
     .main-header {
         text-align: center;
         padding: 2rem;
-        background: linear-gradient(135deg, #0f2027 0%, #203a43 50%, #2c5364 100%);
-        border-radius: 25px;
+        background: linear-gradient(135deg, #1e3a5f 0%, #2c5282 100%);
+        border-radius: 20px;
         color: white;
         margin-bottom: 2rem;
-        box-shadow: 0 20px 35px rgba(0,0,0,0.2);
-        animation: gradientShift 3s ease infinite;
-        background-size: 200% 200%;
-    }
-    
-    @keyframes gradientShift {
-        0% { background-position: 0% 50%; }
-        50% { background-position: 100% 50%; }
-        100% { background-position: 0% 50%; }
+        box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+        border-bottom: 4px solid #ffd700;
     }
     
     .main-header h1 {
-        font-size: 2.8rem;
-        font-weight: 700;
+        font-size: 2.2rem;
+        font-weight: 600;
         margin-bottom: 0.5rem;
-        letter-spacing: -0.5px;
     }
     
     .main-header p {
-        font-size: 1.1rem;
+        font-size: 1rem;
         opacity: 0.9;
-        font-weight: 400;
     }
     
-    .badge-container {
-        display: inline-block;
-        background: rgba(255,255,255,0.2);
-        padding: 0.3rem 1rem;
+    .police-badge {
+        background: #ffd700;
+        color: #1e3a5f;
+        padding: 0.2rem 1rem;
         border-radius: 50px;
+        display: inline-block;
         margin-top: 0.5rem;
+        font-weight: 600;
+        font-size: 0.8rem;
     }
     
-    /* Chat Messages - Premium */
+    /* Chat Messages */
     .stChatMessage {
-        padding: 1.2rem;
+        padding: 1rem;
         border-radius: 1rem;
         margin-bottom: 1rem;
-        animation: fadeInUp 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        animation: fadeIn 0.3s ease;
     }
     
-    @keyframes fadeInUp {
-        from {
-            opacity: 0;
-            transform: translateY(20px);
-        }
-        to {
-            opacity: 1;
-            transform: translateY(0);
-        }
+    @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(10px); }
+        to { opacity: 1; transform: translateY(0); }
     }
     
-    /* User message - sleek right side */
+    /* User message */
     div[data-testid="stChatMessage"][data-testid*="user"] {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        background: linear-gradient(135deg, #1e3a5f 0%, #2c5282 100%);
         color: white !important;
-        border-radius: 20px 20px 5px 20px;
-        box-shadow: 0 4px 15px rgba(102,126,234,0.3);
+        border-radius: 18px 18px 5px 18px;
     }
     
-    /* Assistant message - glassmorphism */
+    /* Assistant message */
     div[data-testid="stChatMessage"][data-testid*="assistant"] {
-        background: rgba(255, 255, 255, 0.95);
-        backdrop-filter: blur(10px);
-        border: 1px solid rgba(255,255,255,0.3);
-        border-radius: 20px 20px 20px 5px;
-        box-shadow: 0 8px 32px rgba(0,0,0,0.08);
+        background: #ffffff;
+        border: 1px solid #e2e8f0;
+        border-radius: 18px 18px 18px 5px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.05);
     }
     
-    /* Sidebar - Dark Premium */
+    /* Sidebar - Light Police Theme */
     [data-testid="stSidebar"] {
-        background: linear-gradient(180deg, #1a1a2e 0%, #16213e 100%);
-        border-right: none;
-    }
-    
-    [data-testid="stSidebar"] .stMarkdown {
-        color: #e0e0e0;
+        background: linear-gradient(180deg, #ffffff 0%, #f0f4f8 100%);
+        border-right: 1px solid #e2e8f0;
     }
     
     [data-testid="stSidebar"] h1, 
     [data-testid="stSidebar"] h2, 
     [data-testid="stSidebar"] h3 {
-        color: #ffffff !important;
+        color: #1e3a5f !important;
     }
     
-    /* Stat Card */
-    .stat-card-premium {
-        background: rgba(255,255,255,0.1);
-        backdrop-filter: blur(10px);
+    /* Stat Cards */
+    .stat-card {
+        background: white;
         border-radius: 15px;
         padding: 1rem;
         margin: 0.8rem 0;
         text-align: center;
-        border: 1px solid rgba(255,255,255,0.15);
+        border: 1px solid #e2e8f0;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.05);
         transition: all 0.3s ease;
     }
     
-    .stat-card-premium:hover {
-        background: rgba(255,255,255,0.15);
+    .stat-card:hover {
         transform: translateY(-2px);
+        box-shadow: 0 8px 20px rgba(0,0,0,0.1);
     }
     
-    .stat-number-premium {
-        font-size: 2.2rem;
+    .stat-number {
+        font-size: 2rem;
         font-weight: 700;
-        background: linear-gradient(135deg, #667eea, #764ba2);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-        background-clip: text;
+        color: #1e3a5f;
     }
     
-    .stat-label-premium {
-        font-size: 0.8rem;
-        color: #a0a0a0;
+    .stat-label {
+        font-size: 0.75rem;
+        color: #64748b;
         margin-top: 0.3rem;
     }
     
-    /* Document Badge */
-    .doc-badge-premium {
-        background: linear-gradient(135deg, #667eea, #764ba2);
+    /* Document Badges */
+    .doc-badge {
+        background: linear-gradient(135deg, #1e3a5f 0%, #2c5282 100%);
         color: white;
-        padding: 0.4rem 0.8rem;
-        border-radius: 25px;
+        padding: 0.3rem 0.8rem;
+        border-radius: 20px;
         font-size: 0.7rem;
         display: inline-block;
         margin: 0.25rem;
-        transition: all 0.3s ease;
-        cursor: pointer;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        max-width: 100%;
     }
     
-    .doc-badge-premium:hover {
-        transform: scale(1.03);
-        box-shadow: 0 2px 8px rgba(102,126,234,0.4);
-    }
-    
-    /* Upload Section Premium */
-    .upload-section-premium {
-        background: rgba(255,255,255,0.05);
-        backdrop-filter: blur(10px);
+    /* Upload Section */
+    .upload-card {
+        background: white;
         border-radius: 15px;
         padding: 1rem;
         margin-bottom: 1rem;
-        border: 2px dashed rgba(102,126,234,0.5);
-        transition: all 0.3s ease;
+        border: 2px dashed #1e3a5f;
+        text-align: center;
     }
     
-    .upload-section-premium:hover {
-        border-color: #667eea;
-        background: rgba(255,255,255,0.08);
-    }
-    
-    /* Button Premium */
+    /* Buttons */
     .stButton button {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        background: linear-gradient(135deg, #1e3a5f 0%, #2c5282 100%);
         color: white;
         border: none;
-        border-radius: 12px;
-        padding: 0.6rem 1.2rem;
+        border-radius: 10px;
+        padding: 0.5rem 1rem;
         font-weight: 500;
         transition: all 0.3s ease;
+        width: 100%;
     }
     
     .stButton button:hover {
         transform: translateY(-2px);
-        box-shadow: 0 8px 20px rgba(102,126,234,0.4);
+        box-shadow: 0 5px 15px rgba(30,58,95,0.3);
     }
     
     /* Answer Section */
-    .detailed-answer-premium {
-        background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%);
+    .answer-section {
+        background: #f8fafc;
         padding: 1.5rem;
-        border-radius: 20px;
-        margin: 0.5rem 0;
-        color: #1a1a2e;
-        line-height: 1.8;
-        font-size: 1rem;
-        border-left: 5px solid #667eea;
-        box-shadow: 0 4px 20px rgba(0,0,0,0.05);
+        border-radius: 15px;
+        margin: 1rem 0;
+        border-left: 4px solid #1e3a5f;
+        line-height: 1.7;
     }
     
     /* Source Line */
-    .source-line-premium {
-        font-size: 0.75rem;
-        color: #888;
+    .source-line {
+        font-size: 0.7rem;
+        color: #64748b;
         margin-top: 1rem;
         padding-top: 0.8rem;
-        border-top: 1px solid rgba(0,0,0,0.1);
-        font-style: italic;
+        border-top: 1px solid #e2e8f0;
     }
     
     /* File Uploader */
-    .stFileUploader {
-        background: transparent;
-        border: none;
-    }
-    
     .stFileUploader > div {
-        background: rgba(255,255,255,0.05);
+        background: #f8fafc;
         border-radius: 12px;
-        padding: 1rem;
+        padding: 0.5rem;
     }
     
     /* Input Field */
     .stTextInput input {
         border-radius: 30px !important;
-        border: 2px solid #e0e0e0 !important;
-        padding: 0.8rem 1.2rem !important;
-        font-size: 1rem !important;
-        transition: all 0.3s ease;
+        border: 2px solid #e2e8f0 !important;
+        padding: 0.7rem 1.2rem !important;
+        font-size: 0.95rem !important;
     }
     
     .stTextInput input:focus {
-        border-color: #667eea !important;
-        box-shadow: 0 0 0 3px rgba(102,126,234,0.2) !important;
+        border-color: #1e3a5f !important;
+        box-shadow: 0 0 0 2px rgba(30,58,95,0.1) !important;
     }
     
     /* Footer */
-    .footer-premium {
+    .footer {
         text-align: center;
         padding: 1.5rem;
-        color: #888;
-        font-size: 0.8rem;
-        border-top: 1px solid rgba(0,0,0,0.05);
+        color: #64748b;
+        font-size: 0.75rem;
+        border-top: 1px solid #e2e8f0;
         margin-top: 2rem;
     }
     
     /* Divider */
     hr {
         margin: 1rem 0;
-        border-color: rgba(255,255,255,0.1);
-    }
-    
-    /* Scrollbar */
-    ::-webkit-scrollbar {
-        width: 8px;
-        height: 8px;
-    }
-    
-    ::-webkit-scrollbar-track {
-        background: #f1f1f1;
-        border-radius: 10px;
-    }
-    
-    ::-webkit-scrollbar-thumb {
-        background: linear-gradient(135deg, #667eea, #764ba2);
-        border-radius: 10px;
+        border-color: #e2e8f0;
     }
     
     /* Progress Bar */
     .stProgress > div > div {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        background: linear-gradient(135deg, #1e3a5f 0%, #2c5282 100%);
+    }
+    
+    /* Expander */
+    .streamlit-expanderHeader {
+        background: #f8fafc;
+        border-radius: 10px;
     }
 </style>
 """, unsafe_allow_html=True)
 
-# Animated Header
+# Police Light Theme Header
 st.markdown("""
 <div class="main-header">
     <h1>👮 Police Rulebook Assistant</h1>
-    <p>Enterprise-Grade RAG Assistant for Law Enforcement Documents</p>
-    <div class="badge-container">
-        <span style="font-size: 0.8rem;">🔍 Semantic Search • 📄 Multi-Document • ⚡ Real-Time</span>
-    </div>
+    <p>Intelligent RAG Assistant for Police Documents, SOPs, Laws & Procedures</p>
+    <div class="police-badge">🔍 Full Document Search • 📚 Complete Knowledge Base</div>
 </div>
 """, unsafe_allow_html=True)
 
@@ -339,6 +286,7 @@ RAW_BASE_URL = f"https://raw.githubusercontent.com/{GITHUB_USERNAME}/{GITHUB_REP
 # ============================================================
 
 def get_pdf_files_from_github():
+    """Get list of all PDF files from GitHub Documents folder"""
     try:
         api_url = f"https://api.github.com/repos/{GITHUB_USERNAME}/{GITHUB_REPO}/contents/{DOCUMENTS_FOLDER}"
         response = requests.get(api_url)
@@ -353,10 +301,11 @@ def get_pdf_files_from_github():
                     })
             return pdf_files
         return []
-    except:
+    except Exception as e:
         return []
 
 def load_pdf_from_url(url: str, filename: str) -> List:
+    """Download PDF from URL and load it"""
     try:
         response = requests.get(url, timeout=30)
         response.raise_for_status()
@@ -373,10 +322,11 @@ def load_pdf_from_url(url: str, filename: str) -> List:
         
         os.unlink(tmp_path)
         return documents
-    except:
+    except Exception as e:
         return []
 
 def process_uploaded_pdf(uploaded_file):
+    """Process uploaded PDF and extract chunks"""
     try:
         file_bytes = uploaded_file.getvalue()
         
@@ -404,10 +354,11 @@ def process_uploaded_pdf(uploaded_file):
         
         os.unlink(tmp_path)
         return chunks
-    except:
+    except Exception as e:
         return []
 
 def add_to_vector_store(chunks):
+    """Add chunks to existing vector store"""
     if st.session_state.vector_store is None:
         st.session_state.vector_store = FAISS.from_documents(chunks, st.session_state.embeddings)
     else:
@@ -417,6 +368,7 @@ def add_to_vector_store(chunks):
     st.session_state.total_chunks_count = len(st.session_state.all_chunks)
 
 def load_all_documents():
+    """Load ALL PDFs from GitHub Documents folder"""
     all_chunks = []
     loaded_files = []
     
@@ -436,7 +388,12 @@ def load_all_documents():
         separators=["\n\n", "\n", ". ", " ", ""]
     )
     
-    for pdf_info in pdf_files:
+    progress_bar = st.progress(0)
+    status_text = st.empty()
+    
+    for i, pdf_info in enumerate(pdf_files):
+        status_text.markdown(f"📖 Loading: `{pdf_info['name']}`...")
+        
         documents = load_pdf_from_url(pdf_info['raw_url'], pdf_info['name'])
         
         if documents:
@@ -447,10 +404,16 @@ def load_all_documents():
                 chunk.metadata["total_chunks"] = len(chunks)
             all_chunks.extend(chunks)
             loaded_files.append(pdf_info['name'])
+        
+        progress_bar.progress((i + 1) / len(pdf_files))
+    
+    status_text.empty()
+    progress_bar.empty()
     
     return all_chunks, loaded_files
 
-def search_all_chunks(query: str, all_chunks: List, top_k: int = 20) -> List:
+def search_all_chunks(query: str, all_chunks: List, top_k: int = 30) -> List:
+    """Search through ALL chunks from ALL PDFs - Deep search"""
     if not all_chunks:
         return []
     
@@ -465,17 +428,28 @@ def search_all_chunks(query: str, all_chunks: List, top_k: int = 20) -> List:
     scored_chunks = []
     for chunk in all_chunks:
         content = chunk.page_content.lower()
-        score = sum(1 for word in important_words if word in content) / len(important_words)
-        if score > 0:
+        score = 0
+        for word in important_words:
+            if word in content:
+                score += 1
+        score = score / len(important_words) if important_words else 0
+        
+        # Bonus for exact phrase matches
+        if query.lower() in content:
+            score += 0.3
+        
+        if score > 0.1:
             scored_chunks.append((score, chunk))
     
     scored_chunks.sort(reverse=True, key=lambda x: x[0])
     return [chunk for score, chunk in scored_chunks[:top_k]]
 
-def generate_answer_with_full_context(query: str, relevant_chunks: List, all_docs: List) -> tuple:
+def generate_comprehensive_answer(query: str, relevant_chunks: List, all_docs: List) -> tuple:
+    """Generate comprehensive answer from ALL relevant chunks - FULL DOCUMENT EXTRACTION"""
     if not relevant_chunks:
         return None, []
     
+    # Group by source document
     sources_dict = {}
     for chunk in relevant_chunks:
         source = chunk.metadata.get("source", "Unknown")
@@ -485,92 +459,123 @@ def generate_answer_with_full_context(query: str, relevant_chunks: List, all_doc
     
     answer_parts = []
     all_sources = []
-    query_words = set(query.lower().split())
+    query_lower = query.lower()
+    query_words = set(query_lower.split())
     
     for source, chunks in sources_dict.items():
         all_sources.append(source)
         answer_parts.append(f"\n### 📄 **{source}**\n")
         
-        combined = " ".join([chunk.page_content for chunk in chunks[:3]])
-        sentences = combined.split('. ')
+        # Combine all chunks from this source for context
+        full_content = " ".join([chunk.page_content for chunk in chunks[:8]])
         
+        # Split into sentences
+        sentences = full_content.replace('\n', ' ').split('. ')
+        
+        # Find relevant sentences
         relevant_sentences = []
         for sentence in sentences:
-            if len(sentence) > 30:
-                if any(word in sentence.lower() for word in query_words):
-                    relevant_sentences.append(sentence.strip())
+            sentence = sentence.strip()
+            if len(sentence) > 40:  # Meaningful sentence length
+                sentence_lower = sentence.lower()
+                # Check if sentence contains query words
+                if any(word in sentence_lower for word in query_words):
+                    relevant_sentences.append(sentence)
+                # Also check for related context
+                elif len(query_words) > 0 and len(sentence) < 500:
+                    relevant_sentences.append(sentence)
         
-        if relevant_sentences:
-            for sent in relevant_sentences[:3]:
-                answer_parts.append(f"> {sent}")
+        # Remove duplicates
+        seen = set()
+        unique_sentences = []
+        for sent in relevant_sentences:
+            if sent not in seen:
+                seen.add(sent)
+                unique_sentences.append(sent)
+        
+        if unique_sentences:
+            # Take up to 6 sentences per document for comprehensive answer
+            for sent in unique_sentences[:6]:
+                answer_parts.append(f"> {sent}.")
                 answer_parts.append("")
         else:
-            if chunks[0].page_content[:300]:
-                answer_parts.append(f"{chunks[0].page_content[:300]}...")
+            # Fallback: take first 400 chars of most relevant chunk
+            best_chunk = max(chunks, key=lambda x: len(x.page_content))
+            preview = best_chunk.page_content[:500]
+            if preview:
+                answer_parts.append(f"{preview}...")
                 answer_parts.append("")
     
     if answer_parts:
-        full = "".join(answer_parts)
-        full = full.replace("\n\n\n", "\n\n")
-        intro = f"🔍 **Searched through {len(all_docs)} documents**\n\n"
-        return intro + full, list(set(all_sources))
+        full_answer = "".join(answer_parts)
+        full_answer = full_answer.replace("\n\n\n", "\n\n")
+        
+        # Add introduction showing search scope
+        intro = f"🔍 **Searched through {len(all_docs)} documents ({len(relevant_chunks)} relevant sections found)**\n\n"
+        intro += f"**Your question:** \"{query}\"\n\n"
+        intro += "---\n\n"
+        
+        final_answer = intro + full_answer
+        return final_answer, list(set(all_sources))
     
     return None, []
 
 # ============================================================
-# SIDEBAR - Advanced Professional
+# SIDEBAR
 # ============================================================
 
 with st.sidebar:
-    st.markdown("## 🎯 Knowledge Control Panel")
-    st.markdown("---")
+    st.markdown("## 📋 Knowledge Dashboard")
     
-    # Stats Cards
     if st.session_state.documents_loaded and st.session_state.pdf_list:
         st.markdown(f"""
-        <div class="stat-card-premium">
-            <div class="stat-number-premium">{len(st.session_state.pdf_list)}</div>
-            <div class="stat-label-premium">Documents Indexed</div>
+        <div class="stat-card">
+            <div class="stat-number">{len(st.session_state.pdf_list)}</div>
+            <div class="stat-label">Documents Loaded</div>
         </div>
-        <div class="stat-card-premium">
-            <div class="stat-number-premium">{st.session_state.total_chunks_count}</div>
-            <div class="stat-label-premium">Text Chunks</div>
+        <div class="stat-card">
+            <div class="stat-number">{st.session_state.total_chunks_count}</div>
+            <div class="stat-label">Text Chunks</div>
         </div>
         """, unsafe_allow_html=True)
         
         st.markdown("### 📚 Document Library")
         for doc in st.session_state.pdf_list:
-            short_name = doc[:28] + "..." if len(doc) > 28 else doc
-            st.markdown(f'<span class="doc-badge-premium">📄 {short_name}</span>', unsafe_allow_html=True)
+            st.markdown(f'<span class="doc-badge" title="{doc}">📄 {doc[:35]}{"..." if len(doc) > 35 else ""}</span>', unsafe_allow_html=True)
     
     st.markdown("---")
     
     # Upload Section
-    st.markdown("## 📤 Upload Manager")
-    uploaded_file = st.file_uploader("Upload PDF Document", type=["pdf"], key="pdf_uploader")
+    st.markdown("## 📤 Upload Document")
+    st.markdown('<div class="upload-card">', unsafe_allow_html=True)
+    uploaded_file = st.file_uploader("Add PDF to Knowledge Base", type=["pdf"], key="pdf_uploader")
     
     if uploaded_file:
-        if st.button("Process & Index", use_container_width=True):
-            with st.spinner(f"Analyzing {uploaded_file.name}..."):
-                chunks = process_uploaded_pdf(uploaded_file)
-                if chunks:
-                    if st.session_state.embeddings is None:
-                        st.session_state.embeddings = HuggingFaceEmbeddings(
-                            model_name="sentence-transformers/all-MiniLM-L6-v2"
-                        )
-                    add_to_vector_store(chunks)
-                    if uploaded_file.name not in st.session_state.pdf_list:
-                        st.session_state.pdf_list.append(uploaded_file.name)
-                    st.success(f"✅ Indexed {uploaded_file.name}")
-                    st.balloons()
-                    st.rerun()
-                else:
-                    st.error("Processing failed")
+        col1, col2 = st.columns(2)
+        with col1:
+            if st.button("📥 Process", use_container_width=True):
+                with st.spinner(f"Processing {uploaded_file.name}..."):
+                    chunks = process_uploaded_pdf(uploaded_file)
+                    if chunks:
+                        if st.session_state.embeddings is None:
+                            st.session_state.embeddings = HuggingFaceEmbeddings(
+                                model_name="sentence-transformers/all-MiniLM-L6-v2"
+                            )
+                        add_to_vector_store(chunks)
+                        if uploaded_file.name not in st.session_state.pdf_list:
+                            st.session_state.pdf_list.append(uploaded_file.name)
+                        st.success(f"✅ Added {uploaded_file.name}")
+                        st.rerun()
+                    else:
+                        st.error("Processing failed")
+        with col2:
+            if st.button("🗑️ Clear", use_container_width=True):
+                st.rerun()
+    st.markdown('</div>', unsafe_allow_html=True)
     
     st.markdown("---")
     
-    # Actions
-    st.markdown("## ⚙️ Actions")
+    st.markdown("## ⚙️ Controls")
     if st.button("🔄 Sync with GitHub", use_container_width=True):
         with st.spinner("Syncing..."):
             st.session_state.documents_loaded = False
@@ -578,46 +583,42 @@ with st.sidebar:
             st.session_state.pdf_list = []
             st.rerun()
     
-    if st.button("🗑️ Clear Session", use_container_width=True):
+    if st.button("🗑️ Clear Chat", use_container_width=True):
         st.session_state.messages = []
         st.rerun()
-    
-    st.markdown("---")
-    
-    # Tips
-    st.markdown("## 💡 Pro Tips")
-    st.info("• Ask specific questions\n• Use keywords from documents\n• Upload PDFs for custom knowledge")
 
 # ============================================================
 # LOAD DOCUMENTS
 # ============================================================
 
 if not st.session_state.documents_loaded:
-    with st.spinner("Loading knowledge base..."):
+    with st.spinner("📚 Loading knowledge base from GitHub..."):
         chunks, loaded_files = load_all_documents()
         
         if chunks:
+            if st.session_state.embeddings is None:
+                st.session_state.embeddings = HuggingFaceEmbeddings(
+                    model_name="sentence-transformers/all-MiniLM-L6-v2"
+                )
             st.session_state.all_chunks = chunks
             st.session_state.vector_store = FAISS.from_documents(chunks, st.session_state.embeddings)
             st.session_state.documents_loaded = True
             st.session_state.pdf_list = loaded_files
             st.session_state.total_chunks_count = len(chunks)
-            st.success(f"✅ Loaded {len(loaded_files)} documents")
+            st.success(f"✅ Loaded {len(loaded_files)} documents from GitHub")
             st.rerun()
 
 # ============================================================
 # MAIN CHAT AREA
 # ============================================================
 
-st.markdown("## 💬 Intelligent Document Chat")
+st.markdown("## 💬 Ask Questions")
 
-# Chat history
 for message in st.session_state.messages:
     with st.chat_message(message["role"]):
         st.markdown(message["content"])
 
-# Input
-prompt = st.chat_input("Ask a question about police procedures, laws, or regulations...")
+prompt = st.chat_input("Ask any question about police procedures, laws, cyber crimes, citizen rights...")
 
 if prompt:
     st.session_state.messages.append({"role": "user", "content": prompt})
@@ -626,30 +627,30 @@ if prompt:
     
     with st.chat_message("assistant"):
         if st.session_state.total_chunks_count == 0:
-            response = "No knowledge base loaded. Please upload documents to begin."
+            response = "⚠️ **No documents loaded.** Please upload PDFs to the GitHub 'Documents' folder or use the sidebar uploader."
             st.markdown(response)
         else:
-            with st.spinner(f"Analyzing {st.session_state.total_chunks_count} text segments..."):
+            with st.spinner(f"🔍 Searching through {st.session_state.total_chunks_count} text segments across {len(st.session_state.pdf_list)} documents..."):
                 try:
-                    relevant = search_all_chunks(prompt, st.session_state.all_chunks, top_k=20)
+                    relevant_chunks = search_all_chunks(prompt, st.session_state.all_chunks, top_k=35)
                     
-                    if relevant:
-                        answer, sources = generate_answer_with_full_context(prompt, relevant, st.session_state.pdf_list)
+                    if relevant_chunks:
+                        answer, sources = generate_comprehensive_answer(prompt, relevant_chunks, st.session_state.pdf_list)
                         
                         if answer:
-                            st.markdown(f'<div class="detailed-answer-premium">{answer}</div>', unsafe_allow_html=True)
+                            st.markdown(f'<div class="answer-section">{answer}</div>', unsafe_allow_html=True)
                             
                             if sources:
-                                source_text = ", ".join(sources[:3])
-                                st.markdown(f'<div class="source-line-premium">📄 Sources: {source_text}</div>', unsafe_allow_html=True)
+                                source_badges = "".join([f'<span class="doc-badge">📄 {s[:30]}{"..." if len(s) > 30 else ""}</span>' for s in sources[:4]])
+                                st.markdown(f'<div class="source-line">📚 Sources: {source_badges}</div>', unsafe_allow_html=True)
                             
                             st.session_state.messages.append({"role": "assistant", "content": answer})
                         else:
-                            response = "No relevant information found. Try rephrasing your question."
+                            response = "No relevant information found. Try rephrasing your question with different keywords."
                             st.markdown(response)
                             st.session_state.messages.append({"role": "assistant", "content": response})
                     else:
-                        response = "No matches found. Try different keywords."
+                        response = "No matches found. Try different keywords or upload more relevant documents."
                         st.markdown(response)
                         st.session_state.messages.append({"role": "assistant", "content": response})
                         
@@ -658,7 +659,7 @@ if prompt:
 
 # Footer
 st.markdown("""
-<div class="footer-premium">
+<div class="footer">
     👮 Police Rulebook Assistant | Project PRJ-005 | Barath R K PDKV | 411623149004
 </div>
 """, unsafe_allow_html=True)
