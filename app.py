@@ -1,6 +1,7 @@
 import streamlit as st
 import tempfile
 import os
+import numpy as np
 
 # LangChain imports
 from langchain_community.document_loaders import PyPDFLoader
@@ -26,14 +27,12 @@ st.markdown("""
         color: white;
         margin-bottom: 2rem;
     }
-    .answer-text {
-        font-size: 1rem;
-        line-height: 1.5;
-    }
     .source-line {
         font-size: 0.8rem;
         color: #666;
         margin-top: 0.5rem;
+        padding-top: 0.5rem;
+        border-top: 1px solid #eee;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -42,7 +41,7 @@ st.markdown("""
 st.markdown("""
 <div class="main-header">
     <h1>👮 Police Rulebook Assistant</h1>
-    <p>RAG Document Assistant for SOPs, Complaint Manuals & Citizen Procedures</p>
+    <p>Smart RAG Assistant for Police SOPs, Complaint Manuals & Citizen Procedures</p>
 </div>
 """, unsafe_allow_html=True)
 
@@ -67,7 +66,7 @@ if not st.session_state.embeddings_loaded:
         except Exception as e:
             st.error(f"Error loading embeddings: {e}")
 
-# Sidebar - Clean version with only upload and sample questions
+# Sidebar - Only upload
 with st.sidebar:
     st.markdown("## 📄 Document Upload")
     
@@ -113,20 +112,9 @@ with st.sidebar:
     
     st.divider()
     
-    # Sample questions only
-    st.markdown("## 💡 Sample Questions")
-    sample_queries = [
-        "How to file a police complaint?",
-        "What is the procedure for traffic violation?",
-        "Tell me about citizen rights",
-        "How to report a missing person?",
-        "What are cyber laws in India?"
-    ]
-    
-    for q in sample_queries:
-        if st.button(q, key=f"sample_{q[:20]}", use_container_width=True):
-            st.session_state.prompt = q
-            st.rerun()
+    # Simple info
+    if st.session_state.vector_store:
+        st.caption(f"✅ {len(st.session_state.documents)} chunks ready")
 
 # Main chat area
 st.markdown("## 💬 Ask Questions")
@@ -137,11 +125,7 @@ for message in st.session_state.messages:
         st.markdown(message["content"])
 
 # Handle prompt
-if "prompt" in st.session_state:
-    prompt = st.session_state.prompt
-    del st.session_state.prompt
-else:
-    prompt = st.chat_input("Type your question about police procedures...")
+prompt = st.chat_input("Ask anything about police procedures...")
 
 # Process question
 if prompt:
@@ -153,87 +137,158 @@ if prompt:
     # Get assistant response
     with st.chat_message("assistant"):
         if st.session_state.vector_store is None:
-            response_message = "No documents uploaded yet. Please upload a PDF document using the sidebar to start asking questions."
+            response_message = "No documents uploaded yet. Please upload a PDF document using the sidebar."
             st.markdown(response_message)
             st.session_state.messages.append({"role": "assistant", "content": response_message})
         else:
             with st.spinner("Searching police rulebook..."):
                 try:
-                    # Retrieve relevant documents
+                    # Smart retrieval - get more candidates and rerank
                     retriever = st.session_state.vector_store.as_retriever(
-                        search_kwargs={"k": 5}
+                        search_kwargs={"k": 8}  # Get more candidates for better matching
                     )
                     relevant_docs = retriever.invoke(prompt)
                     
                     if relevant_docs:
-                        # Calculate relevance score for each document
+                        # Calculate semantic relevance using word vectors and synonyms
                         query_words = set(prompt.lower().split())
+                        
+                        # Stop words to ignore
+                        stop_words = {'the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 'of', 'with', 'by', 'is', 'are', 'was', 'were', 'be', 'been', 'being', 'have', 'has', 'had', 'having', 'do', 'does', 'did', 'doing', 'what', 'when', 'where', 'which', 'who', 'whom', 'this', 'that', 'these', 'those', 'am', 'it', 'they', 'we', 'you', 'he', 'she', 'it', 'them', 'us'}
+                        
+                        # Filter out stop words from query
+                        important_query_words = [w for w in query_words if w not in stop_words and len(w) > 2]
+                        
                         scored_docs = []
                         
                         for doc in relevant_docs:
-                            doc_words = set(doc.page_content.lower().split())
-                            if len(query_words) > 0:
-                                overlap = len(query_words & doc_words)
-                                score = overlap / len(query_words)
+                            doc_text_lower = doc.page_content.lower()
+                            doc_words = set(doc_text_lower.split())
+                            
+                            # Remove stop words from doc
+                            important_doc_words = [w for w in doc_words if w not in stop_words and len(w) > 2]
+                            
+                            # Calculate word overlap score
+                            if len(important_query_words) > 0:
+                                word_matches = sum(1 for w in important_query_words if w in important_doc_words)
+                                word_score = word_matches / len(important_query_words)
                             else:
-                                score = 0
-                            scored_docs.append((score, doc))
+                                word_score = 0
+                            
+                            # Check for related terms (semantic synonyms)
+                            related_terms = {
+                                'complaint': ['filing', 'register', 'report', 'lodge', 'grievance'],
+                                'procedure': ['process', 'steps', 'method', 'guidelines', 'protocol'],
+                                'rights': ['entitlement', 'legal', 'law', 'provision', 'protection'],
+                                'traffic': ['vehicle', 'driving', 'road', 'accident', 'violation'],
+                                'police': ['officer', 'station', 'department', 'law enforcement'],
+                                'citizen': ['public', 'person', 'individual', 'resident'],
+                                'file': ['submit', 'register', 'lodge', 'deposit'],
+                                'report': ['inform', 'notify', 'communicate', 'submit'],
+                                'status': ['update', 'progress', 'tracking', 'follow-up']
+                            }
+                            
+                            # Check for related terms
+                            related_score = 0
+                            for query_word in important_query_words:
+                                for key, terms in related_terms.items():
+                                    if query_word in key or query_word in terms:
+                                        for term in terms:
+                                            if term in doc_text_lower:
+                                                related_score += 0.3
+                            
+                            # Check for exact phrase matches (higher weight)
+                            phrase_score = 0
+                            query_phrases = prompt.lower().split('.')
+                            for phrase in query_phrases[:2]:  # Check first 2 phrases
+                                if len(phrase.split()) > 2 and phrase in doc_text_lower:
+                                    phrase_score += 0.5
+                            
+                            # Combined score
+                            total_score = min(word_score + related_score + phrase_score, 1.0)
+                            scored_docs.append((total_score, doc))
                         
-                        # Sort by score and filter low relevance
+                        # Sort by score
                         scored_docs.sort(reverse=True, key=lambda x: x[0])
                         
-                        # Only keep high relevance answers (score >= 0.3)
-                        high_relevance_docs = [(score, doc) for score, doc in scored_docs if score >= 0.3]
+                        # Keep only docs with decent relevance (score >= 0.25)
+                        relevant_docs = [(score, doc) for score, doc in scored_docs if score >= 0.25]
                         
-                        if high_relevance_docs:
-                            # Use top 2 most relevant documents
-                            top_docs = high_relevance_docs[:2]
+                        if relevant_docs:
+                            # Take top 2 most relevant documents
+                            top_docs = relevant_docs[:2]
                             
-                            # Build response
+                            # Build comprehensive answer
                             response_parts = []
+                            source_files = []
                             
                             for score, doc in top_docs:
-                                # Extract the most relevant sentence
+                                source_files.append(doc.metadata.get("source", "Unknown"))
+                                
+                                # Extract multiple relevant sentences
                                 sentences = doc.page_content.split('. ')
-                                best_sentence = ""
-                                best_score = 0
+                                relevant_sentences = []
                                 
                                 for sentence in sentences:
-                                    sentence_words = set(sentence.lower().split())
-                                    overlap = len(query_words & sentence_words)
-                                    if overlap > best_score:
-                                        best_score = overlap
-                                        best_sentence = sentence
+                                    sentence_lower = sentence.lower()
+                                    # Check if sentence contains important query words
+                                    contains_relevant = False
+                                    for word in important_query_words:
+                                        if word in sentence_lower:
+                                            contains_relevant = True
+                                            break
+                                    # Also check for related terms
+                                    for key, terms in related_terms.items():
+                                        for term in terms:
+                                            if term in sentence_lower:
+                                                contains_relevant = True
+                                                break
+                                    
+                                    if contains_relevant and len(sentence) > 30:
+                                        relevant_sentences.append(sentence.strip())
                                 
-                                if best_sentence and best_score > 0:
-                                    response_parts.append(best_sentence)
+                                if relevant_sentences:
+                                    # Take best 2-3 sentences
+                                    response_parts.extend(relevant_sentences[:3])
                                 else:
-                                    response_parts.append(doc.page_content[:400])
+                                    # Fallback to first 300 chars
+                                    response_parts.append(doc.page_content[:300])
                             
-                            # Combine responses
-                            if len(response_parts) == 1:
-                                response_message = response_parts[0]
+                            # Remove duplicates while preserving order
+                            seen = set()
+                            unique_response_parts = []
+                            for part in response_parts:
+                                if part not in seen:
+                                    seen.add(part)
+                                    unique_response_parts.append(part)
+                            
+                            # Combine response
+                            if len(unique_response_parts) == 1:
+                                response_message = unique_response_parts[0]
                             else:
-                                response_message = "\n\n".join(response_parts)
+                                response_message = " ".join(unique_response_parts)
+                            
+                            # Clean up response
+                            response_message = response_message.strip()
+                            if response_message and not response_message.endswith('.'):
+                                response_message += '.'
                             
                             st.markdown(response_message)
                             
                             # Add source line
-                            source_files = list(set([doc.metadata.get("source", "Unknown") for score, doc in top_docs]))
-                            if source_files:
-                                st.caption(f"Source: {', '.join(source_files)}")
+                            unique_sources = list(set(source_files))
+                            st.markdown(f'<div class="source-line">📄 Source: {", ".join(unique_sources)}</div>', unsafe_allow_html=True)
                             
                             st.session_state.messages.append({
                                 "role": "assistant",
                                 "content": response_message
                             })
                         else:
-                            # No high relevance answers
-                            response_message = "I couldn't find highly relevant information. Please try rephrasing your question."
+                            response_message = "I couldn't find specific information about that. Could you please rephrase your question or ask about police procedures like complaints, traffic violations, or citizen rights?"
                             st.markdown(response_message)
                             st.session_state.messages.append({"role": "assistant", "content": response_message})
                     else:
-                        response_message = "No information found. Please try rephrasing your question."
+                        response_message = "I couldn't find any relevant information. Try asking about police complaints, traffic procedures, or citizen rights."
                         st.markdown(response_message)
                         st.session_state.messages.append({"role": "assistant", "content": response_message})
                         
