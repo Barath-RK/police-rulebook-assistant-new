@@ -20,39 +20,17 @@ st.set_page_config(
 # Dark Theme with Red/Green Accents CSS
 st.markdown("""
 <style>
-    /* Dark Theme Variables */
-    :root {
-        --bg-dark: #0a0e1a;
-        --bg-card: #131823;
-        --bg-sidebar: #0d1117;
-        --text-primary: #e6edf3;
-        --text-secondary: #8b949e;
-        --police-blue: #1f6e8c;
-        --police-red: #dc2626;
-        --police-green: #10b981;
-        --accent-red: #ef4444;
-        --accent-green: #22c55e;
-        --border-color: #21262d;
-    }
-    
-    * {
-        font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-    }
-    
-    /* Main container */
     .stApp {
         background: linear-gradient(135deg, #0a0e1a 0%, #0f1119 100%);
     }
     
-    /* Header - Dark Police Style */
     .main-header {
         text-align: center;
         padding: 2rem;
         background: linear-gradient(135deg, #0a0e1a 0%, #1a1f2e 100%);
         border-radius: 20px;
         margin-bottom: 2rem;
-        border: 1px solid var(--border-color);
-        box-shadow: 0 10px 25px rgba(0,0,0,0.3);
+        border: 1px solid #21262d;
         position: relative;
         overflow: hidden;
     }
@@ -79,7 +57,7 @@ st.markdown("""
     
     .main-header p {
         font-size: 0.95rem;
-        color: var(--text-secondary);
+        color: #8b949e;
     }
     
     .badge-container {
@@ -94,7 +72,6 @@ st.markdown("""
         padding: 0.2rem 1rem;
         border-radius: 50px;
         font-size: 0.7rem;
-        font-weight: 600;
         border: 1px solid rgba(220,38,38,0.3);
     }
     
@@ -104,63 +81,27 @@ st.markdown("""
         padding: 0.2rem 1rem;
         border-radius: 50px;
         font-size: 0.7rem;
-        font-weight: 600;
         border: 1px solid rgba(16,185,129,0.3);
     }
     
-    /* Chat Messages */
-    .stChatMessage {
-        padding: 1rem;
-        border-radius: 1rem;
-        margin-bottom: 1rem;
-        animation: fadeInUp 0.3s ease-out;
-    }
-    
-    @keyframes fadeInUp {
-        from {
-            opacity: 0;
-            transform: translateY(15px);
-        }
-        to {
-            opacity: 1;
-            transform: translateY(0);
-        }
-    }
-    
-    /* User message - Red accent */
     div[data-testid="stChatMessage"][data-testid*="user"] {
         background: linear-gradient(135deg, #1a0f0f 0%, #1f1414 100%);
         border: 1px solid rgba(220,38,38,0.3);
         color: #f0f0f0 !important;
         border-radius: 20px 20px 5px 20px;
-        box-shadow: 0 4px 12px rgba(220,38,38,0.1);
     }
     
-    /* Assistant message - Green accent */
     div[data-testid="stChatMessage"][data-testid*="assistant"] {
         background: linear-gradient(135deg, #0f1a14 0%, #0d1f18 100%);
         border: 1px solid rgba(16,185,129,0.3);
         border-radius: 20px 20px 20px 5px;
-        box-shadow: 0 4px 12px rgba(16,185,129,0.1);
     }
     
-    /* Sidebar - Dark Theme */
     [data-testid="stSidebar"] {
         background: linear-gradient(180deg, #0a0e1a 0%, #0d1117 100%);
-        border-right: 1px solid var(--border-color);
+        border-right: 1px solid #21262d;
     }
     
-    [data-testid="stSidebar"] .stMarkdown {
-        color: var(--text-primary);
-    }
-    
-    [data-testid="stSidebar"] h1, 
-    [data-testid="stSidebar"] h2, 
-    [data-testid="stSidebar"] h3 {
-        color: #e6edf3 !important;
-    }
-    
-    /* Stat Cards */
     .stat-card-red {
         background: #131823;
         border-radius: 15px;
@@ -168,13 +109,6 @@ st.markdown("""
         margin: 0.8rem 0;
         text-align: center;
         border: 1px solid rgba(220,38,38,0.3);
-        transition: all 0.3s ease;
-    }
-    
-    .stat-card-red:hover {
-        transform: translateY(-2px);
-        border-color: #dc2626;
-        box-shadow: 0 8px 20px rgba(220,38,38,0.15);
     }
     
     .stat-card-green {
@@ -184,13 +118,6 @@ st.markdown("""
         margin: 0.8rem 0;
         text-align: center;
         border: 1px solid rgba(16,185,129,0.3);
-        transition: all 0.3s ease;
-    }
-    
-    .stat-card-green:hover {
-        transform: translateY(-2px);
-        border-color: #10b981;
-        box-shadow: 0 8px 20px rgba(16,185,129,0.15);
     }
     
     .stat-number-red {
@@ -207,28 +134,11 @@ st.markdown("""
     
     .stat-label {
         font-size: 0.7rem;
-        color: var(--text-secondary);
+        color: #8b949e;
         margin-top: 0.3rem;
     }
     
-    /* Document Badges */
-    .doc-badge-red {
-        background: rgba(220,38,38,0.15);
-        color: #ef4444;
-        padding: 0.3rem 0.8rem;
-        border-radius: 20px;
-        font-size: 0.7rem;
-        display: inline-block;
-        margin: 0.25rem;
-        border: 1px solid rgba(220,38,38,0.3);
-        transition: all 0.2s ease;
-    }
-    
-    .doc-badge-red:hover {
-        background: rgba(220,38,38,0.25);
-    }
-    
-    .doc-badge-green {
+    .doc-badge {
         background: rgba(16,185,129,0.15);
         color: #10b981;
         padding: 0.3rem 0.8rem;
@@ -237,14 +147,8 @@ st.markdown("""
         display: inline-block;
         margin: 0.25rem;
         border: 1px solid rgba(16,185,129,0.3);
-        transition: all 0.2s ease;
     }
     
-    .doc-badge-green:hover {
-        background: rgba(16,185,129,0.25);
-    }
-    
-    /* Upload Section */
     .upload-card {
         background: #131823;
         border-radius: 15px;
@@ -254,7 +158,6 @@ st.markdown("""
         text-align: center;
     }
     
-    /* Buttons */
     .stButton button {
         background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
         color: white;
@@ -262,7 +165,6 @@ st.markdown("""
         border-radius: 10px;
         padding: 0.5rem 1rem;
         font-weight: 600;
-        transition: all 0.3s ease;
         width: 100%;
     }
     
@@ -271,7 +173,6 @@ st.markdown("""
         box-shadow: 0 5px 15px rgba(220,38,38,0.4);
     }
     
-    /* Answer Section */
     .answer-section {
         background: linear-gradient(135deg, #0f1a14 0%, #0d1f18 100%);
         padding: 1.2rem;
@@ -279,36 +180,15 @@ st.markdown("""
         margin: 0.5rem 0;
         line-height: 1.7;
         border-left: 4px solid #10b981;
-    }
-    
-    .answer-section p, .answer-section div {
         color: #e6edf3;
     }
     
-    /* Source Line */
-    .source-line {
-        font-size: 0.7rem;
-        color: var(--text-secondary);
-        margin-top: 1rem;
-        padding-top: 0.8rem;
-        border-top: 1px solid rgba(255,255,255,0.1);
-    }
-    
-    /* File Uploader */
-    .stFileUploader > div {
-        background: #0d1117;
-        border-radius: 12px;
-        padding: 0.5rem;
-    }
-    
-    /* Input Field */
     .stTextInput input {
         border-radius: 30px !important;
         border: 2px solid #21262d !important;
         background: #0d1117 !important;
         color: #e6edf3 !important;
         padding: 0.7rem 1.2rem !important;
-        font-size: 0.95rem !important;
     }
     
     .stTextInput input:focus {
@@ -316,68 +196,31 @@ st.markdown("""
         box-shadow: 0 0 0 2px rgba(16,185,129,0.2) !important;
     }
     
-    /* Footer */
     .footer {
         text-align: center;
         padding: 1.5rem;
-        color: var(--text-secondary);
+        color: #8b949e;
         font-size: 0.75rem;
-        border-top: 1px solid var(--border-color);
+        border-top: 1px solid #21262d;
         margin-top: 2rem;
     }
     
-    /* Divider */
-    hr {
-        margin: 1rem 0;
-        border-color: var(--border-color);
-    }
-    
-    /* Progress Bar */
     .stProgress > div > div {
         background: linear-gradient(90deg, #dc2626, #10b981);
-    }
-    
-    /* Scrollbar */
-    ::-webkit-scrollbar {
-        width: 8px;
-        height: 8px;
-    }
-    
-    ::-webkit-scrollbar-track {
-        background: #0d1117;
-        border-radius: 10px;
-    }
-    
-    ::-webkit-scrollbar-thumb {
-        background: linear-gradient(135deg, #dc2626, #10b981);
-        border-radius: 10px;
-    }
-    
-    /* Expander */
-    .streamlit-expanderHeader {
-        background: #131823;
-        border-radius: 10px;
-        color: #e6edf3;
-    }
-    
-    /* Info/Warning/Success messages */
-    .stAlert {
-        background: #131823;
-        border-color: var(--border-color);
     }
 </style>
 """, unsafe_allow_html=True)
 
-# Dark Theme Header with Red/Green Accents
+# Header
 st.markdown("""
 <div class="main-header">
     <h1>👮 Police Rulebook Assistant</h1>
-    <p>Advanced RAG Assistant for Police SOPs, Laws, Cyber Crimes & Citizen Rights</p>
+    <p>Complete Legal Reference for Police Procedures, Rights & Laws</p>
     <div class="badge-container">
-        <span class="badge-red">🔴 Semantic Search</span>
-        <span class="badge-green">🟢 Multi-Document</span>
-        <span class="badge-red">🔴 Real-Time</span>
-        <span class="badge-green">🟢 Full Text</span>
+        <span class="badge-red">🔴 Context-Aware Search</span>
+        <span class="badge-green">🟢 Full Document Analysis</span>
+        <span class="badge-red">🔴 Smart Matching</span>
+        <span class="badge-green">🟢 Accurate Answers</span>
     </div>
 </div>
 """, unsafe_allow_html=True)
@@ -507,70 +350,106 @@ def load_all_documents():
             loaded_files.append(pdf_info['name'])
     return all_chunks, loaded_files
 
-def search_all_chunks(query: str, all_chunks: List, top_k: int = 30) -> List:
+def semantic_search(query: str, all_chunks: List, top_k: int = 20) -> List:
+    """Enhanced semantic search with phrase matching"""
     if not all_chunks:
         return []
-    query_words = set(query.lower().split())
+    
+    query_lower = query.lower()
+    query_words = set(query_lower.split())
     stop_words = {'the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 'of', 'with', 'by', 'is', 'are', 'was', 'were', 'be', 'been', 'being', 'have', 'has', 'had', 'having', 'do', 'does', 'did', 'doing', 'what', 'when', 'where', 'which', 'who', 'whom', 'this', 'that', 'these', 'those'}
     important_words = [w for w in query_words if w not in stop_words and len(w) > 2]
-    if not important_words:
-        return all_chunks[:top_k]
+    
+    # Also extract common phrases from query (like "without warrant", "arrest of a person")
+    query_phrases = []
+    if "without warrant" in query_lower:
+        query_phrases.append("without warrant")
+    if "arrest of a person" in query_lower:
+        query_phrases.append("arrest of a person")
+    if "right to" in query_lower:
+        query_phrases.append("right to")
+    
     scored_chunks = []
     for chunk in all_chunks:
         content = chunk.page_content.lower()
-        score = sum(1 for word in important_words if word in content) / len(important_words)
-        if query.lower() in content:
+        score = 0
+        
+        # Match important words
+        if important_words:
+            word_matches = sum(1 for word in important_words if word in content)
+            score += (word_matches / len(important_words)) * 0.6
+        
+        # Match exact phrases (higher weight)
+        for phrase in query_phrases:
+            if phrase in content:
+                score += 0.4
+        
+        # Bonus for full query match
+        if query_lower in content:
             score += 0.3
-        if score > 0.1:
+        
+        if score > 0:
             scored_chunks.append((score, chunk))
+    
     scored_chunks.sort(reverse=True, key=lambda x: x[0])
     return [chunk for score, chunk in scored_chunks[:top_k]]
 
-def generate_comprehensive_answer(query: str, relevant_chunks: List, all_docs: List) -> tuple:
+def extract_relevant_answer(query: str, relevant_chunks: List) -> str:
+    """Extract only the relevant answer without source info"""
     if not relevant_chunks:
-        return None, []
-    sources_dict = {}
+        return None
+    
+    query_lower = query.lower()
+    query_words = set(query_lower.split())
+    
+    # Extract key phrases from query for better matching
+    key_phrases = []
+    if "without warrant" in query_lower:
+        key_phrases.append("without warrant")
+    if "arrest" in query_lower:
+        key_phrases.append("arrest")
+    
+    best_answer = ""
+    best_score = 0
+    
     for chunk in relevant_chunks:
-        source = chunk.metadata.get("source", "Unknown")
-        if source not in sources_dict:
-            sources_dict[source] = []
-        sources_dict[source].append(chunk)
-    answer_parts = []
-    all_sources = []
-    query_words = set(query.lower().split())
-    for source, chunks in sources_dict.items():
-        all_sources.append(source)
-        answer_parts.append(f"\n### 📄 **{source}**\n")
-        full_content = " ".join([chunk.page_content for chunk in chunks[:8]])
-        sentences = full_content.replace('\n', ' ').split('. ')
-        relevant_sentences = []
-        for sentence in sentences:
-            sentence = sentence.strip()
-            if len(sentence) > 40:
-                if any(word in sentence.lower() for word in query_words):
-                    relevant_sentences.append(sentence)
-        seen = set()
-        unique_sentences = []
-        for sent in relevant_sentences:
-            if sent not in seen:
-                seen.add(sent)
-                unique_sentences.append(sent)
-        if unique_sentences:
-            for sent in unique_sentences[:6]:
-                answer_parts.append(f"> {sent}.")
-                answer_parts.append("")
-        else:
-            best_chunk = max(chunks, key=lambda x: len(x.page_content))
-            if best_chunk.page_content[:500]:
-                answer_parts.append(f"{best_chunk.page_content[:500]}...")
-                answer_parts.append("")
-    if answer_parts:
-        full_answer = "".join(answer_parts)
-        full_answer = full_answer.replace("\n\n\n", "\n\n")
-        intro = f"🔍 **Searched through {len(all_docs)} documents**\n\n"
-        final_answer = intro + full_answer
-        return final_answer, list(set(all_sources))
-    return None, []
+        content = chunk.page_content
+        content_lower = content.lower()
+        
+        # Calculate relevance score
+        score = 0
+        for phrase in key_phrases:
+            if phrase in content_lower:
+                score += 2
+        
+        for word in query_words:
+            if len(word) > 3 and word in content_lower:
+                score += 1
+        
+        if score > best_score:
+            best_score = score
+            # Extract relevant sentences
+            sentences = content.split('. ')
+            relevant_sentences = []
+            for sentence in sentences:
+                if len(sentence) > 30:
+                    if any(phrase in sentence.lower() for phrase in key_phrases):
+                        relevant_sentences.append(sentence.strip())
+                    elif any(word in sentence.lower() for word in query_words):
+                        relevant_sentences.append(sentence.strip())
+            
+            if relevant_sentences:
+                best_answer = ". ".join(relevant_sentences[:4])
+            else:
+                best_answer = content[:600]
+    
+    if best_answer:
+        # Clean up and ensure proper ending
+        if not best_answer.endswith('.') and not best_answer.endswith('?'):
+            best_answer += '.'
+        return best_answer
+    
+    return None
 
 # ============================================================
 # SIDEBAR
@@ -593,7 +472,8 @@ with st.sidebar:
         
         st.markdown("### 📚 Document Library")
         for doc in st.session_state.pdf_list:
-            st.markdown(f'<span class="doc-badge-green">📄 {doc[:35]}{"..." if len(doc) > 35 else ""}</span>', unsafe_allow_html=True)
+            short_name = doc[:30] + "..." if len(doc) > 30 else doc
+            st.markdown(f'<span class="doc-badge">📄 {short_name}</span>', unsafe_allow_html=True)
     
     st.markdown("---")
     
@@ -602,7 +482,7 @@ with st.sidebar:
     uploaded_file = st.file_uploader("Add PDF to Knowledge Base", type=["pdf"], key="pdf_uploader")
     
     if uploaded_file:
-        if st.button("📥 Process", use_container_width=True):
+        if st.button("📥 Process & Add", use_container_width=True):
             with st.spinner(f"Processing {uploaded_file.name}..."):
                 chunks = process_uploaded_pdf(uploaded_file)
                 if chunks:
@@ -622,7 +502,7 @@ with st.sidebar:
     st.markdown("---")
     
     st.markdown("## ⚙️ Controls")
-    if st.button("🔄 Sync GitHub", use_container_width=True):
+    if st.button("🔄 Sync with GitHub", use_container_width=True):
         st.session_state.documents_loaded = False
         st.session_state.all_chunks = []
         st.session_state.pdf_list = []
@@ -651,18 +531,20 @@ if not st.session_state.documents_loaded:
             st.session_state.total_chunks_count = len(chunks)
             st.success(f"✅ Loaded {len(loaded_files)} documents")
             st.rerun()
+        else:
+            st.info("📤 No documents found. Upload PDFs to get started.")
 
 # ============================================================
 # MAIN CHAT AREA
 # ============================================================
 
-st.markdown("## 💬 Intelligent Document Chat")
+st.markdown("## 💬 Ask Legal Questions")
 
 for message in st.session_state.messages:
     with st.chat_message(message["role"]):
         st.markdown(message["content"])
 
-prompt = st.chat_input("Ask about police procedures, cyber laws, citizen rights, traffic rules...")
+prompt = st.chat_input("Ask about legal procedures, rights, arrests, complaints...")
 
 if prompt:
     st.session_state.messages.append({"role": "user", "content": prompt})
@@ -671,27 +553,28 @@ if prompt:
     
     with st.chat_message("assistant"):
         if st.session_state.total_chunks_count == 0:
-            response = "⚠️ **No documents loaded.** Please upload PDFs to the GitHub 'Documents' folder."
+            response = "⚠️ No documents loaded. Please upload PDFs to continue."
             st.markdown(response)
         else:
-            with st.spinner(f"🔍 Searching {st.session_state.total_chunks_count} text segments..."):
+            with st.spinner("🔍 Analyzing legal documents..."):
                 try:
-                    relevant = search_all_chunks(prompt, st.session_state.all_chunks, top_k=30)
+                    relevant = semantic_search(prompt, st.session_state.all_chunks, top_k=15)
+                    
                     if relevant:
-                        answer, sources = generate_comprehensive_answer(prompt, relevant, st.session_state.pdf_list)
+                        answer = extract_relevant_answer(prompt, relevant)
+                        
                         if answer:
                             st.markdown(f'<div class="answer-section">{answer}</div>', unsafe_allow_html=True)
-                            if sources:
-                                st.markdown(f'<div class="source-line">📚 Sources: {", ".join(sources[:3])}</div>', unsafe_allow_html=True)
                             st.session_state.messages.append({"role": "assistant", "content": answer})
                         else:
-                            response = "No relevant information found. Try rephrasing."
+                            response = "No specific information found. Try rephrasing your question or adding more relevant documents."
                             st.markdown(response)
                             st.session_state.messages.append({"role": "assistant", "content": response})
                     else:
-                        response = "No matches found. Try different keywords."
+                        response = "No relevant information found. Try different keywords or upload more documents."
                         st.markdown(response)
                         st.session_state.messages.append({"role": "assistant", "content": response})
+                        
                 except Exception as e:
                     st.error(f"Error: {str(e)[:200]}")
 
