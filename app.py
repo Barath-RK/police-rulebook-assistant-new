@@ -179,7 +179,7 @@ def load_all_documents(show_progress=True):
     return all_chunks, loaded_files
 
 # ============================================================
-# ENHANCED SEARCH FUNCTIONS - DEEPER & MORE DETAILED
+# ENHANCED SEARCH FUNCTIONS
 # ============================================================
 
 def search_documents_deep(query: str, top_k: int = 10) -> List:
@@ -204,17 +204,11 @@ def calculate_relevance_score(query: str, content: str) -> float:
     if not important_query:
         return 0.0
     
-    # Word overlap score
     word_matches = sum(1 for w in important_query if w in content_words)
     word_score = word_matches / len(important_query)
     
-    # Phrase score (check if query appears as phrase)
     phrase_score = 1.0 if query.lower() in content_lower else 0.0
-    
-    # Length factor (prefer longer, more detailed content)
     length_factor = min(len(content) / 1000, 1.0)
-    
-    # Combined score
     total_score = (word_score * 0.5) + (phrase_score * 0.3) + (length_factor * 0.2)
     
     return min(total_score, 1.0)
@@ -224,23 +218,18 @@ def generate_detailed_answer_enhanced(query: str, all_chunks: List, top_k: int =
     if not all_chunks:
         return None, []
     
-    # Score all chunks individually
     scored_chunks = []
     for chunk in all_chunks:
         score = calculate_relevance_score(query, chunk.page_content)
         if score > 0:
             scored_chunks.append((score, chunk))
     
-    # Sort by relevance
     scored_chunks.sort(reverse=True, key=lambda x: x[0])
-    
-    # Take top relevant chunks (up to 8)
     top_chunks = scored_chunks[:top_k]
     
     if not top_chunks:
         return None, []
     
-    # Group by source document
     sources_dict = {}
     for score, chunk in top_chunks:
         source = chunk.metadata.get("source", "Unknown")
@@ -248,54 +237,40 @@ def generate_detailed_answer_enhanced(query: str, all_chunks: List, top_k: int =
             sources_dict[source] = []
         sources_dict[source].append((score, chunk))
     
-    # Build detailed answer
     answer_parts = []
     all_sources = []
     
     for source, chunks_list in sources_dict.items():
         all_sources.append(source)
-        
-        # Sort chunks within source by score
         chunks_list.sort(reverse=True, key=lambda x: x[0])
-        
         answer_parts.append(f"\n📄 **From {source}:**\n")
         
-        for score, chunk in chunks_list[:3]:  # Top 3 chunks per document
-            # Extract relevant sentences
+        for score, chunk in chunks_list[:3]:
             content = chunk.page_content
             sentences = content.split('. ')
-            
-            # Find best sentences
             query_words = set(query.lower().split())
             relevant_sentences = []
             
             for sentence in sentences:
                 sentence_lower = sentence.lower()
-                if len(sentence) > 30:  # Only meaningful sentences
+                if len(sentence) > 30:
                     if any(word in sentence_lower for word in query_words):
                         relevant_sentences.append(sentence.strip())
             
             if relevant_sentences:
-                for sent in relevant_sentences[:2]:  # Top 2 sentences per chunk
+                for sent in relevant_sentences[:2]:
                     if sent and len(sent) > 20:
                         answer_parts.append(f"  • {sent}.")
             else:
-                # Take first 300 chars if no good sentence found
                 preview = content[:300]
                 if preview:
                     answer_parts.append(f"  • {preview}...")
     
     if answer_parts:
-        # Combine answer
         full_answer = "".join(answer_parts)
-        
-        # Clean up
         full_answer = full_answer.replace("\n\n\n", "\n\n")
-        
-        # Add introduction
-        intro = f"I found the following information related to your question:\n\n"
+        intro = "I found the following information related to your question:\n\n"
         final_answer = intro + full_answer
-        
         return final_answer, list(set(all_sources))
     
     return None, []
@@ -305,37 +280,32 @@ def generate_answer_with_all_context(query: str, relevant_docs) -> tuple:
     if not relevant_docs:
         return None, []
     
-    # Combine all relevant content
     all_content = []
     sources = []
     
-    for doc in relevant_docs[:10]:  # Use top 10 documents
+    for doc in relevant_docs[:10]:
         sources.append(doc.metadata.get("source", "Unknown"))
         all_content.append(doc.page_content)
     
     combined_content = " ".join(all_content)
     
-    # Extract key information
     query_words = set(query.lower().split())
     stop_words = {'the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 'of', 'with', 'by', 'is', 'are', 'was', 'were', 'be', 'been', 'being', 'have', 'has', 'had', 'having', 'do', 'does', 'did', 'doing', 'what', 'when', 'where', 'which', 'who', 'whom', 'this', 'that', 'these', 'those'}
     
     important_words = [w for w in query_words if w not in stop_words and len(w) > 2]
     
-    # Extract relevant sentences from combined content
     sentences = combined_content.split('. ')
     relevant_sentences = []
     
     for sentence in sentences:
         if len(sentence) > 30:
             sentence_lower = sentence.lower()
-            # Check if sentence contains important words
             if important_words:
                 if any(word in sentence_lower for word in important_words):
                     relevant_sentences.append(sentence.strip())
             else:
                 relevant_sentences.append(sentence.strip())
     
-    # Remove duplicates
     seen = set()
     unique_sentences = []
     for sent in relevant_sentences:
@@ -344,7 +314,6 @@ def generate_answer_with_all_context(query: str, relevant_docs) -> tuple:
             unique_sentences.append(sent)
     
     if unique_sentences:
-        # Build detailed answer
         answer = "Based on the police documents:\n\n"
         for i, sent in enumerate(unique_sentences[:7], 1):
             answer += f"{i}. {sent}.\n"
@@ -360,7 +329,6 @@ def generate_answer_with_all_context(query: str, relevant_docs) -> tuple:
 with st.sidebar:
     st.markdown("### 📚 Knowledge Base")
     
-    # Refresh button
     if st.button("🔄 Refresh & Reload All PDFs", type="primary", use_container_width=True):
         st.session_state.force_reload = True
         st.session_state.documents_loaded = False
@@ -415,17 +383,15 @@ if prompt:
     
     with st.chat_message("assistant"):
         if not st.session_state.documents_loaded or not st.session_state.all_chunks:
-            response = "⚠️ No documents loaded. Please add PDFs to the 'Documents' folder and click Refresh."
+            response = "No documents loaded. Please add PDFs to the 'Documents' folder and click Refresh."
             st.markdown(response)
             st.session_state.messages.append({"role": "assistant", "content": response})
         else:
-            with st.spinner("🔍 Deep searching through all police documents..."):
+            with st.spinner("Deep searching through all police documents..."):
                 try:
-                    # Method 1: Use all chunks for detailed search
                     answer, sources = generate_detailed_answer_enhanced(prompt, st.session_state.all_chunks, top_k=10)
                     
                     if not answer:
-                        # Method 2: Fallback to vector search
                         vector_results = search_documents_deep(prompt, top_k=15)
                         answer, sources = generate_answer_with_all_context(prompt, vector_results)
                     
@@ -440,22 +406,7 @@ if prompt:
                             "content": answer
                         })
                     else:
-                        response = """I couldn't find specific information matching your query in the loaded documents.
-
-**Suggestions:**
-1. Try rephrasing your question with different keywords
-2. Make sure your PDFs contain relevant information
-3. Try asking about specific topics like:
-   - Complaint filing procedures
-   - Traffic violation rules
-   - Citizen rights
-   - Cyber crime reporting
-   - Missing person protocols
-
-**Example questions:**
-- "What is the procedure to file a police complaint?"
-- "How to report a cyber crime online?"
-- "What are the rights of citizens during police investigation?""
+                        response = "I couldn't find specific information matching your query in the loaded documents.\n\nSuggestions:\n1. Try rephrasing your question with different keywords\n2. Make sure your PDFs contain relevant information\n3. Try asking about specific topics like:\n   - Complaint filing procedures\n   - Traffic violation rules\n   - Citizen rights\n   - Cyber crime reporting\n   - Missing person protocols\n\nExample questions:\n- What is the procedure to file a police complaint?\n- How to report a cyber crime online?\n- What are the rights of citizens during police investigation?"
                         st.markdown(response)
                         st.session_state.messages.append({"role": "assistant", "content": response})
                         
