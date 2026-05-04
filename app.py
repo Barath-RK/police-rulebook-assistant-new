@@ -3,9 +3,9 @@ import tempfile
 import os
 from datetime import datetime
 
-# Correct imports for LangChain 0.1.0
+# CORRECT IMPORTS for LangChain
 from langchain_community.document_loaders import PyPDFLoader
-from langchain_community.text_splitter import RecursiveCharacterTextSplitter
+from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_community.embeddings import HuggingFaceEmbeddings
 from langchain_community.vectorstores import FAISS
 
