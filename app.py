@@ -2,7 +2,7 @@ import streamlit as st
 import tempfile
 import os
 import requests
-from typing import List
+from typing import List, Dict
 import re
 
 # LangChain imports
@@ -18,7 +18,7 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# Dark Theme CSS (same as before, keeping it short)
+# Dark Theme CSS
 st.markdown("""
 <style>
     .stApp { background: linear-gradient(135deg, #0a0e1a 0%, #0f1119 100%); }
@@ -26,9 +26,6 @@ st.markdown("""
     .main-header::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px; background: linear-gradient(90deg, #dc2626, #10b981, #dc2626); }
     .main-header h1 { font-size: 2.2rem; font-weight: 700; margin-bottom: 0.5rem; background: linear-gradient(135deg, #fff 0%, #dc2626 50%, #10b981 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
     .main-header p { font-size: 0.95rem; color: #8b949e; }
-    .badge-container { display: inline-flex; gap: 0.5rem; margin-top: 0.8rem; }
-    .badge-red { background: rgba(220,38,38,0.2); color: #ef4444; padding: 0.2rem 1rem; border-radius: 50px; font-size: 0.7rem; border: 1px solid rgba(220,38,38,0.3); }
-    .badge-green { background: rgba(16,185,129,0.2); color: #10b981; padding: 0.2rem 1rem; border-radius: 50px; font-size: 0.7rem; border: 1px solid rgba(16,185,129,0.3); }
     div[data-testid="stChatMessage"][data-testid*="user"] { background: linear-gradient(135deg, #1a0f0f 0%, #1f1414 100%); border: 1px solid rgba(220,38,38,0.3); color: #f0f0f0 !important; border-radius: 20px 20px 5px 20px; }
     div[data-testid="stChatMessage"][data-testid*="assistant"] { background: linear-gradient(135deg, #0f1a14 0%, #0d1f18 100%); border: 1px solid rgba(16,185,129,0.3); border-radius: 20px 20px 20px 5px; }
     [data-testid="stSidebar"] { background: linear-gradient(180deg, #0a0e1a 0%, #0d1117 100%); border-right: 1px solid #21262d; }
@@ -43,9 +40,7 @@ st.markdown("""
     .stButton button:hover { transform: translateY(-2px); box-shadow: 0 5px 15px rgba(220,38,38,0.4); }
     .answer-section { background: linear-gradient(135deg, #0f1a14 0%, #0d1f18 100%); padding: 1.2rem; border-radius: 15px; margin: 0.5rem 0; line-height: 1.7; border-left: 4px solid #10b981; color: #e6edf3; }
     .stTextInput input { border-radius: 30px !important; border: 2px solid #21262d !important; background: #0d1117 !important; color: #e6edf3 !important; padding: 0.7rem 1.2rem !important; }
-    .stTextInput input:focus { border-color: #10b981 !important; box-shadow: 0 0 0 2px rgba(16,185,129,0.2) !important; }
     .footer { text-align: center; padding: 1.5rem; color: #8b949e; font-size: 0.75rem; border-top: 1px solid #21262d; margin-top: 2rem; }
-    .stProgress > div > div { background: linear-gradient(90deg, #dc2626, #10b981); }
 </style>
 """, unsafe_allow_html=True)
 
@@ -53,13 +48,7 @@ st.markdown("""
 st.markdown("""
 <div class="main-header">
     <h1>👮 Police Rulebook Assistant</h1>
-    <p>Complete Legal Reference for CrPC, IPC, Police Procedures & Rights</p>
-    <div class="badge-container">
-        <span class="badge-red">🔴 Direct Answers</span>
-        <span class="badge-green">🟢 No Extra Text</span>
-        <span class="badge-red">🔴 Precise Matching</span>
-        <span class="badge-green">🟢 Clean Output</span>
-    </div>
+    <p>Complete Legal Reference for IPC, CrPC, Cyber Laws & Police Procedures</p>
 </div>
 """, unsafe_allow_html=True)
 
@@ -139,8 +128,8 @@ def process_uploaded_pdf(uploaded_file):
         if not documents:
             return []
         splitter = RecursiveCharacterTextSplitter(
-            chunk_size=800,
-            chunk_overlap=150,
+            chunk_size=1000,
+            chunk_overlap=200,
             separators=["\n\n", "\n", ". ", " ", ""]
         )
         chunks = splitter.split_documents(documents)
@@ -172,8 +161,8 @@ def load_all_documents():
             model_name="sentence-transformers/all-MiniLM-L6-v2"
         )
     splitter = RecursiveCharacterTextSplitter(
-        chunk_size=800,
-        chunk_overlap=150,
+        chunk_size=1000,
+        chunk_overlap=200,
         separators=["\n\n", "\n", ". ", " ", ""]
     )
     for pdf_info in pdf_files:
@@ -188,88 +177,136 @@ def load_all_documents():
             loaded_files.append(pdf_info['name'])
     return all_chunks, loaded_files
 
-def get_direct_answer(query: str, all_chunks: List) -> str:
-    """Get direct answer without any extra text"""
-    if not all_chunks:
-        return None
-    
+def smart_search_with_priority(query: str, all_chunks: List, top_k: int = 15) -> List:
+    """Smart search that prioritizes IPC/CrPC for crime-related questions"""
     query_lower = query.lower()
     
-    # Define question patterns and expected answer markers
-    question_patterns = {
-        "arrest without warrant": ["arrest without warrant", "section 41", "cognizable offence", "police officer may without"],
-        "how to arrest": ["arrest any person", "shall arrest", "mode of arrest", "section 41", "police officer may"],
-        "bail": ["bailable", "non-bailable", "bail", "section 436"],
-        "cognizable offence": ["cognizable", "section 2(c)", "police can arrest"]
-    }
+    # Define QUESTION TYPES to identify which PDF to prioritize
+    crime_keywords = [
+        "murder", "theft", "robbery", "dacoity", "rape", "assault", "hurt", 
+        "kidnapping", "cheating", "forgery", "extortion", "criminal breach",
+        "mischief", "trespass", "defamation", "punishment", "offence"
+    ]
     
-    # Find matching pattern
-    search_terms = []
-    for pattern, terms in question_patterns.items():
-        if pattern in query_lower or any(term in query_lower for term in terms):
-            search_terms = terms
-            break
+    ipc_keywords = ["ipc", "indian penal code", "section 3", "section 302"]
     
-    if not search_terms:
-        search_terms = [w for w in query_lower.split() if len(w) > 3]
+    # Check if question is about crimes/punishments
+    is_crime_question = any(keyword in query_lower for keyword in crime_keywords)
+    is_ipc_question = any(keyword in query_lower for keyword in ipc_keywords) or is_crime_question
     
-    # Search all chunks
+    cyber_keywords = ["cyber", "it act", "hacking", "phishing", "data protection", "online fraud"]
+    is_cyber_question = any(keyword in query_lower for keyword in cyber_keywords)
+    
     scored_chunks = []
+    query_words = set(query_lower.split())
+    stop_words = {'the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 'of', 'with', 'by', 'is', 'are', 'was', 'were', 'be', 'been', 'being', 'have', 'has', 'had', 'having', 'do', 'does', 'did', 'doing', 'what', 'when', 'where', 'which', 'who', 'whom', 'this', 'that', 'these', 'those'}
+    important_words = [w for w in query_words if w not in stop_words and len(w) > 2]
+    
     for chunk in all_chunks:
         content = chunk.page_content
         content_lower = content.lower()
-        score = 0
+        source = chunk.metadata.get("source", "").lower()
         
-        for term in search_terms:
-            if term in content_lower:
-                score += 1
+        # Base score
+        base_score = 0
         
-        # Higher score for content that starts with answer format (Q: or Ans:)
-        if "ans)" in content_lower or "answer:" in content_lower or "section" in content_lower:
-            score += 2
+        # Calculate word match score
+        if important_words:
+            word_matches = sum(1 for word in important_words if word in content_lower)
+            word_score = word_matches / len(important_words)
+        else:
+            word_score = 0
         
-        if score > 0:
-            scored_chunks.append((score, chunk))
+        base_score = word_score
+        
+        # PRIORITY BOOSTING
+        # Boost for IPC/CrPC content when asking about crimes
+        if is_crime_question or is_ipc_question:
+            if "indian penal code" in source or "ipc" in source or "penal" in source:
+                base_score += 0.5  # BIG BOOST for IPC
+            if "section 302" in content_lower or "section 304" in content_lower or "section 378" in content_lower:
+                base_score += 0.4  # Boost for section mentions
+            if "murder" in content_lower and "punishment" in content_lower:
+                base_score += 0.3
+        
+        # Penalize Cyber Laws for non-cyber questions
+        if not is_cyber_question:
+            if "cyber" in source or "it act" in content_lower:
+                base_score -= 0.3  # PENALTY for wrong PDF
+        
+        # Cyber question gets boost for cyber content
+        if is_cyber_question:
+            if "cyber" in source or "it act" in content_lower:
+                base_score += 0.5
+        
+        # Exact phrase match bonus
+        if query_lower in content_lower:
+            base_score += 0.2
+        
+        if base_score > 0:
+            scored_chunks.append((base_score, chunk))
     
     scored_chunks.sort(reverse=True, key=lambda x: x[0])
+    return [chunk for score, chunk in scored_chunks[:top_k]]
+
+def extract_answer_from_chunks(query: str, relevant_chunks: List, all_docs: List) -> str:
+    """Extract answer from prioritized chunks"""
+    if not relevant_chunks:
+        return None
     
-    if scored_chunks:
-        best_chunk = scored_chunks[0][1]
-        content = best_chunk.page_content
+    query_lower = query.lower()
+    query_words = set(query_lower.split())
+    
+    # Look for specific section information
+    best_answer = ""
+    best_score = 0
+    
+    for chunk in relevant_chunks:
+        content = chunk.page_content
+        content_lower = content.lower()
+        source = chunk.metadata.get("source", "")
         
-        # Extract relevant sentences - find where answer starts
-        sentences = re.split(r'[.!?]\s+', content)
+        # Calculate relevance
+        score = 0
         
-        # Find the sentence that contains answer keywords
-        answer_start_idx = -1
-        for i, sentence in enumerate(sentences):
-            sentence_lower = sentence.lower()
-            # Look for answer markers
-            if any(marker in sentence_lower for marker in ["ans)", "answer:", "section"]):
-                answer_start_idx = i
-                break
-            # Also check if sentence directly answers the question
-            if any(term in sentence_lower for term in search_terms):
-                if answer_start_idx == -1:
-                    answer_start_idx = i
+        # Check for section numbers
+        section_match = re.search(r'section\s*(\d+)', content_lower, re.IGNORECASE)
+        if section_match:
+            score += 0.3
         
-        if answer_start_idx >= 0:
-            # Take answer from that sentence onwards (max 5 sentences)
-            answer_sentences = sentences[answer_start_idx:answer_start_idx+5]
-            answer = ". ".join(answer_sentences)
-        else:
-            # Take first 3 sentences
-            answer = ". ".join(sentences[:3])
+        # Check for answer patterns (like "punishment for murder")
+        if "punishment" in content_lower:
+            score += 0.2
         
+        # Word overlap
+        content_words = set(content_lower.split())
+        overlap = len(query_words & content_words)
+        if len(query_words) > 0:
+            score += overlap / len(query_words)
+        
+        if score > best_score:
+            best_score = score
+            # Extract the most relevant paragraph
+            sentences = re.split(r'[.!?]\s+', content)
+            relevant_sentences = []
+            for sentence in sentences:
+                if len(sentence) > 30:
+                    if any(word in sentence.lower() for word in query_words):
+                        relevant_sentences.append(sentence.strip())
+                    elif "section" in sentence.lower() and "punishment" in sentence.lower():
+                        relevant_sentences.append(sentence.strip())
+            
+            if relevant_sentences:
+                best_answer = ". ".join(relevant_sentences[:3])
+            else:
+                best_answer = content[:600]
+    
+    if best_answer:
         # Clean up
-        answer = answer.strip()
-        answer = re.sub(r'Q\d+\s+.*?Ans\)', '', answer)  # Remove Q numbers
-        answer = re.sub(r'Q\.\d+\s+', '', answer)  # Remove Q.1 patterns
-        
-        if not answer.endswith('.') and not answer.endswith('?'):
-            answer += '.'
-        
-        return answer
+        best_answer = best_answer.strip()
+        if not best_answer.endswith('.') and not best_answer.endswith('?'):
+            best_answer += '.'
+        return best_answer
     
     return None
 
@@ -293,8 +330,8 @@ with st.sidebar:
         """, unsafe_allow_html=True)
         
         st.markdown("### 📚 Document Library")
-        for doc in st.session_state.pdf_list:
-            short_name = doc[:30] + "..." if len(doc) > 30 else doc
+        for doc in st.session_state.pdf_list[:5]:
+            short_name = doc[:35] + "..." if len(doc) > 35 else doc
             st.markdown(f'<span class="doc-badge">📄 {short_name}</span>', unsafe_allow_html=True)
     
     st.markdown("---")
@@ -323,7 +360,6 @@ with st.sidebar:
     
     st.markdown("---")
     
-    st.markdown("## ⚙️ Controls")
     if st.button("🔄 Sync with GitHub", use_container_width=True):
         st.session_state.documents_loaded = False
         st.session_state.all_chunks = []
@@ -353,8 +389,6 @@ if not st.session_state.documents_loaded:
             st.session_state.total_chunks_count = len(chunks)
             st.success(f"✅ Loaded {len(loaded_files)} documents")
             st.rerun()
-        else:
-            st.info("📤 No documents found. Upload PDFs to get started.")
 
 # ============================================================
 # MAIN CHAT AREA
@@ -366,7 +400,7 @@ for message in st.session_state.messages:
     with st.chat_message(message["role"]):
         st.markdown(message["content"])
 
-prompt = st.chat_input("Ask about arrest, bail, cognizable offences, police procedures...")
+prompt = st.chat_input("Ask about IPC, CrPC, Cyber Laws, or police procedures...")
 
 if prompt:
     st.session_state.messages.append({"role": "user", "content": prompt})
@@ -378,20 +412,22 @@ if prompt:
             response = "⚠️ No documents loaded. Please upload PDFs to continue."
             st.markdown(response)
         else:
-            with st.spinner("🔍 Searching for direct answer..."):
+            with st.spinner(f"🔍 Searching through {st.session_state.total_chunks_count} legal documents..."):
                 try:
-                    answer = get_direct_answer(prompt, st.session_state.all_chunks)
+                    relevant = smart_search_with_priority(prompt, st.session_state.all_chunks, top_k=15)
                     
-                    if answer:
-                        # Clean up any remaining unwanted prefixes
-                        answer = re.sub(r'^.*?Answer:', '', answer, flags=re.IGNORECASE)
-                        answer = re.sub(r'^.*?Ans\)', '', answer, flags=re.IGNORECASE)
-                        answer = answer.strip()
+                    if relevant:
+                        answer = extract_answer_from_chunks(prompt, relevant, st.session_state.pdf_list)
                         
-                        st.markdown(f'<div class="answer-section">{answer}</div>', unsafe_allow_html=True)
-                        st.session_state.messages.append({"role": "assistant", "content": answer})
+                        if answer:
+                            st.markdown(f'<div class="answer-section">{answer}</div>', unsafe_allow_html=True)
+                            st.session_state.messages.append({"role": "assistant", "content": answer})
+                        else:
+                            response = "No specific information found. Try a different question."
+                            st.markdown(response)
+                            st.session_state.messages.append({"role": "assistant", "content": response})
                     else:
-                        response = "No specific information found. Try rephrasing your question."
+                        response = "No relevant information found. Try different keywords."
                         st.markdown(response)
                         st.session_state.messages.append({"role": "assistant", "content": response})
                         
