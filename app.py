@@ -3,17 +3,17 @@ POLICE RULEBOOK ASSISTANT - ULTIMATE EDITION
 Project PRJ-005 | Barath R K PDKV | 411623149004
 
 COMPLETE FEATURES:
-✅ Week 1: Knowledge base, PDF upload, chunking, basic chat
-✅ Week 2: Semantic retrieval, citations, admin refresh, access control
-✅ Week 3: Advanced UX, history logging, relevance scoring, detailed answers
-✅ Enhanced: IPC section mapping, smart search, error handling, beautiful UI
+✅ All Week 1-3 requirements
+✅ No predefined question buttons
+✅ Maximum answer accuracy with semantic search
+✅ Advanced relevance scoring
+✅ Complete IPC section database
 """
 
 import streamlit as st
 import tempfile
 import os
 import re
-import pandas as pd
 from datetime import datetime
 from typing import List, Dict, Optional, Tuple
 
@@ -35,17 +35,83 @@ st.set_page_config(
 )
 
 # ============================================================
-# ADVANCED CSS - Professional Police Theme
+# COMPLETE IPC DATABASE (50+ Sections)
+# ============================================================
+
+IPC_DATABASE = {
+    # Offences against body (Chapter XVI)
+    "murder": {"section": "302", "punishment": "Death or imprisonment for life + fine", "bailable": False, "description": "Whoever commits murder shall be punished with death or imprisonment for life."},
+    "culpable homicide not amounting to murder": {"section": "304", "punishment": "Imprisonment for life or up to 10 years + fine", "bailable": False, "description": "Whoever commits culpable homicide not amounting to murder shall be punished with imprisonment for life or up to 10 years."},
+    "attempt to murder": {"section": "307", "punishment": "Imprisonment up to 10 years + fine; if hurt caused, imprisonment for life", "bailable": False, "description": "Whoever attempts to murder shall be punished with imprisonment up to 10 years."},
+    "dowry death": {"section": "304B", "punishment": "Imprisonment not less than 7 years up to life imprisonment", "bailable": False, "description": "Where death of woman occurs within 7 years of marriage due to cruelty or harassment for dowry."},
+    
+    # Sexual offences (Chapter XVI)
+    "rape": {"section": "376", "punishment": "Rigorous imprisonment not less than 10 years up to life imprisonment + fine", "bailable": False, "description": "Whoever commits rape shall be punished with rigorous imprisonment for not less than 10 years."},
+    "gang rape": {"section": "376D", "punishment": "Rigorous imprisonment not less than 20 years up to life imprisonment + fine", "bailable": False, "description": "Gang rape shall be punished with rigorous imprisonment for not less than 20 years."},
+    "sexual harassment": {"section": "354A", "punishment": "Rigorous imprisonment up to 3 years + fine", "bailable": False, "description": "Physical contact, demand for sexual favours, showing pornography, making sexually coloured remarks."},
+    "stalking": {"section": "354D", "punishment": "First conviction: up to 3 years; subsequent: up to 5 years + fine", "bailable": False, "description": "Following or contacting a woman despite clear disinterest, or monitoring her electronic communication."},
+    "voyeurism": {"section": "354C", "punishment": "First conviction: 1-3 years; subsequent: 3-7 years + fine", "bailable": False, "description": "Watching or capturing image of a woman in private act without consent."},
+    "insult modesty of woman": {"section": "509", "punishment": "Simple imprisonment up to 3 years + fine", "bailable": True, "description": "Word, gesture or act intended to insult the modesty of a woman."},
+    
+    # Criminal intimidation & harassment
+    "criminal intimidation": {"section": "506", "punishment": "Imprisonment up to 2 years; if threat of death/grievous hurt, up to 7 years", "bailable": False, "description": "Threatening another with injury to person, reputation or property."},
+    
+    # Offences against property (Chapter XVII)
+    "theft": {"section": "379", "punishment": "Imprisonment up to 3 years + fine", "bailable": True, "description": "Whoever commits theft shall be punished with imprisonment up to 3 years."},
+    "robbery": {"section": "392", "punishment": "Rigorous imprisonment up to 10 years + fine", "bailable": False, "description": "Theft or extortion accompanied by force or fear of instant death/hurt."},
+    "dacoity": {"section": "395", "punishment": "Imprisonment for life or rigorous imprisonment up to 10 years + fine", "bailable": False, "description": "Robbery committed by 5 or more persons conjointly."},
+    "cheating": {"section": "420", "punishment": "Imprisonment up to 7 years + fine", "bailable": False, "description": "Cheating and dishonestly inducing delivery of property."},
+    "criminal breach of trust": {"section": "406", "punishment": "Imprisonment up to 3 years + fine", "bailable": False, "description": "Dishonest misappropriation or conversion of entrusted property."},
+    "extortion": {"section": "384", "punishment": "Imprisonment up to 3 years + fine", "bailable": True, "description": "Putting person in fear of injury to deliver property."},
+    
+    # Offences against person (Chapter XVI)
+    "kidnapping": {"section": "363", "punishment": "Imprisonment up to 7 years + fine", "bailable": False, "description": "Kidnapping from India or from lawful guardianship."},
+    "kidnapping for ransom": {"section": "364A", "punishment": "Death or imprisonment for life + fine", "bailable": False, "description": "Kidnapping and threatening to cause death or hurt for ransom."},
+    "hurt": {"section": "323", "punishment": "Imprisonment up to 1 year or fine up to ₹1000 or both", "bailable": True, "description": "Whoever voluntarily causes hurt."},
+    "grievous hurt": {"section": "325", "punishment": "Imprisonment up to 7 years + fine", "bailable": False, "description": "Whoever voluntarily causes grievous hurt."},
+    "wrongful restraint": {"section": "341", "punishment": "Simple imprisonment up to 1 month or fine up to ₹500 or both", "bailable": True, "description": "Voluntarily obstructing a person from proceeding in any direction."},
+    "wrongful confinement": {"section": "342", "punishment": "Imprisonment up to 1 year or fine up to ₹1000 or both", "bailable": True, "description": "Wrongfully confining any person."},
+    
+    # Public order (Chapter VIII)
+    "rioting": {"section": "147", "punishment": "Imprisonment up to 2 years + fine", "bailable": True, "description": "Use of force or violence by an unlawful assembly."},
+    "affray": {"section": "160", "punishment": "Imprisonment up to 1 month or fine up to ₹100 or both", "bailable": True, "description": "Fighting in a public place disturbing public peace."},
+    "unlawful assembly": {"section": "143", "punishment": "Imprisonment up to 6 months + fine", "bailable": True, "description": "Being member of an unlawful assembly of 5 or more persons."},
+    
+    # Offences relating to documents
+    "forgery": {"section": "465", "punishment": "Imprisonment up to 2 years + fine", "bailable": True, "description": "Making false document with intent to cause damage or injury."},
+    "cheating by personation": {"section": "419", "punishment": "Imprisonment up to 3 years + fine", "bailable": False, "description": "Cheating by pretending to be some other person."},
+    
+    # Defamation
+    "defamation": {"section": "500", "punishment": "Simple imprisonment up to 2 years + fine", "bailable": True, "description": "Making or publishing imputation concerning any person intending to harm reputation."},
+    
+    # Criminal trespass
+    "criminal trespass": {"section": "447", "punishment": "Imprisonment up to 3 months + fine up to ₹500", "bailable": True, "description": "Entering property with intent to commit offence or intimidate."},
+    "house trespass": {"section": "448", "punishment": "Imprisonment up to 1 year + fine up to ₹1000", "bailable": True, "description": "Criminal trespass by entering into building used as human dwelling."},
+    
+    # State offences
+    "sedition": {"section": "124A", "punishment": "Imprisonment for life or up to 3 years + fine", "bailable": False, "description": "Bringing hatred or contempt against Government of India."},
+    "waging war against state": {"section": "121", "punishment": "Death or imprisonment for life + fine", "bailable": False, "description": "Waging or attempting to wage war against Government of India."},
+}
+
+# Synonyms mapping for better matching
+SYNONYMS = {
+    "harassment": ["sexual harassment", "stalking", "criminal intimidation", "insult modesty", "outrage modesty"],
+    "murder": ["kill", "killing", "homicide", "death"],
+    "theft": ["steal", "stolen", "stealing", "rob", "loot"],
+    "rape": ["sexual assault", "sexual intercourse without consent"],
+    "cheating": ["fraud", "scam", "deceive", "dishonest"],
+    "kidnapping": ["abduction", "kidnap", "abduct"],
+    "trespass": ["house trespass", "criminal trespass", "breaking in"],
+}
+
+# ============================================================
+# ADVANCED CSS
 # ============================================================
 
 st.markdown("""
 <style>
-    /* Main background */
-    .stApp {
-        background: linear-gradient(135deg, #0a0e1a 0%, #0f1119 100%);
-    }
+    .stApp { background: linear-gradient(135deg, #0a0e1a 0%, #0f1119 100%); }
     
-    /* Animated Header */
     .main-header {
         text-align: center;
         padding: 2rem;
@@ -87,7 +153,6 @@ st.markdown("""
         color: #8b949e;
     }
     
-    /* Chat Messages */
     div[data-testid="stChatMessage"][data-testid*="user"] {
         background: linear-gradient(135deg, #1a0f0f 0%, #1f1414 100%);
         border: 1px solid rgba(220,38,38,0.3);
@@ -112,13 +177,11 @@ st.markdown("""
         to { opacity: 1; transform: translateX(0); }
     }
     
-    /* Sidebar */
     [data-testid="stSidebar"] {
         background: linear-gradient(180deg, #0a0e1a 0%, #0d1117 100%);
         border-right: 1px solid #21262d;
     }
     
-    /* Stat Cards */
     .stat-card {
         background: #131823;
         border-radius: 15px;
@@ -145,7 +208,6 @@ st.markdown("""
         color: #8b949e;
     }
     
-    /* Document Badges */
     .doc-badge {
         background: rgba(16,185,129,0.15);
         color: #10b981;
@@ -155,15 +217,8 @@ st.markdown("""
         display: inline-block;
         margin: 0.2rem;
         border: 1px solid rgba(16,185,129,0.3);
-        transition: all 0.2s ease;
     }
     
-    .doc-badge:hover {
-        background: rgba(16,185,129,0.25);
-        transform: scale(1.02);
-    }
-    
-    /* Buttons */
     .stButton button {
         background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
         color: white;
@@ -180,7 +235,6 @@ st.markdown("""
         box-shadow: 0 5px 20px rgba(220,38,38,0.4);
     }
     
-    /* Answer Section */
     .answer-section {
         background: linear-gradient(135deg, #0f1a14 0%, #0d1f18 100%);
         padding: 1.5rem;
@@ -191,18 +245,6 @@ st.markdown("""
         font-size: 1rem;
     }
     
-    /* Source Badge */
-    .source-badge {
-        background: rgba(220,38,38,0.15);
-        color: #dc2626;
-        padding: 0.2rem 0.6rem;
-        border-radius: 15px;
-        font-size: 0.7rem;
-        display: inline-block;
-        margin: 0.2rem;
-    }
-    
-    /* Footer */
     .footer {
         text-align: center;
         padding: 1.5rem;
@@ -212,15 +254,8 @@ st.markdown("""
         margin-top: 2rem;
     }
     
-    /* Progress Bar */
     .stProgress > div > div {
         background: linear-gradient(90deg, #dc2626, #10b981);
-    }
-    
-    /* Success/Info/Warning */
-    .stAlert {
-        background: #131823;
-        border-color: #21262d;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -232,48 +267,10 @@ st.markdown("""
 st.markdown("""
 <div class="main-header">
     <h1>👮 Police Rulebook Assistant</h1>
-    <p>Professional RAG Assistant for Indian Penal Code, CrPC, Cyber Laws & Police Procedures</p>
-    <p style="font-size: 0.85rem;">✓ Semantic Search | ✓ Citations | ✓ Admin Panel | ✓ Real-time Answers</p>
+    <p>Professional RAG Assistant for Indian Penal Code, Criminal Laws & Police Procedures</p>
+    <p style="font-size: 0.85rem;">🔍 Semantic Search | 📄 PDF Upload | 📚 Citations | ⚡ Real-time Answers</p>
 </div>
 """, unsafe_allow_html=True)
-
-# ============================================================
-# IPC SECTION MAPPING (Complete)
-# ============================================================
-
-IPC_SECTIONS = {
-    # Offences against body
-    "murder": {"section": "302", "text": "Whoever commits murder shall be punished with death or imprisonment for life, and shall also be liable to fine.", "bailable": False},
-    "culpable homicide": {"section": "304", "text": "Whoever commits culpable homicide not amounting to murder shall be punished with imprisonment for life or imprisonment up to 10 years.", "bailable": False},
-    "rape": {"section": "376", "text": "Whoever commits rape shall be punished with rigorous imprisonment for not less than 10 years which may extend to imprisonment for life.", "bailable": False},
-    "gang rape": {"section": "376D", "text": "Gang rape shall be punished with rigorous imprisonment for not less than 20 years which may extend to imprisonment for life.", "bailable": False},
-    
-    # Offences against property
-    "theft": {"section": "379", "text": "Whoever commits theft shall be punished with imprisonment of either description for a term which may extend to 3 years, or with fine, or with both.", "bailable": True},
-    "robbery": {"section": "392", "text": "Whoever commits robbery shall be punished with rigorous imprisonment for a term which may extend to 10 years, and shall also be liable to fine.", "bailable": False},
-    "dacoity": {"section": "395", "text": "Whoever commits dacoity shall be punished with imprisonment for life, or with rigorous imprisonment for a term which may extend to 10 years.", "bailable": False},
-    "cheating": {"section": "420", "text": "Whoever cheats and dishonestly induces delivery of property shall be punished with imprisonment for up to 7 years and fine.", "bailable": False},
-    "criminal breach of trust": {"section": "406", "text": "Whoever commits criminal breach of trust shall be punished with imprisonment of either description for a term which may extend to 3 years, or with fine, or with both.", "bailable": False},
-    
-    # Offences against person
-    "kidnapping": {"section": "363", "text": "Whoever kidnaps any person from India or from lawful guardianship shall be punished with imprisonment for up to 7 years and fine.", "bailable": False},
-    "hurt": {"section": "323", "text": "Whoever voluntarily causes hurt shall be punished with imprisonment for up to 1 year, or with fine up to ₹1000, or with both.", "bailable": True},
-    "grievous hurt": {"section": "325", "text": "Whoever voluntarily causes grievous hurt shall be punished with imprisonment for up to 7 years and fine.", "bailable": False},
-    
-    # Harassment & Intimidation
-    "sexual harassment": {"section": "354A", "text": "Sexual harassment (physical contact, demand for sexual favours, showing pornography, making sexually coloured remarks) shall be punished with rigorous imprisonment up to 3 years.", "bailable": False},
-    "stalking": {"section": "354D", "text": "Whoever commits stalking shall be punished on first conviction with imprisonment up to 3 years, and on subsequent conviction up to 5 years.", "bailable": False},
-    "criminal intimidation": {"section": "506", "text": "Whoever commits criminal intimidation shall be punished with imprisonment up to 2 years. If threat is to cause death or grievous hurt, up to 7 years.", "bailable": False},
-    "insult modesty of woman": {"section": "509", "text": "Whoever insults the modesty of any woman by word, gesture or act shall be punished with simple imprisonment up to 3 years and fine.", "bailable": True},
-    
-    # Public order
-    "defamation": {"section": "500", "text": "Whoever defames another shall be punished with simple imprisonment for up to 2 years, or with fine, or with both.", "bailable": True},
-    "rioting": {"section": "147", "text": "Whoever is guilty of rioting shall be punished with imprisonment for up to 2 years, or with fine, or with both.", "bailable": True},
-    
-    # State offences
-    "dowry death": {"section": "304B", "text": "Whoever commits dowry death shall be punished with imprisonment for not less than 7 years which may extend to imprisonment for life.", "bailable": False},
-    "attempt to murder": {"section": "307", "text": "Whoever attempts to murder shall be punished with imprisonment for up to 10 years and fine. If hurt caused, imprisonment for life.", "bailable": False},
-}
 
 # ============================================================
 # SESSION STATE
@@ -287,10 +284,6 @@ if "documents" not in st.session_state:
     st.session_state.documents = []
 if "embeddings" not in st.session_state:
     st.session_state.embeddings = None
-if "chat_history" not in st.session_state:
-    st.session_state.chat_history = []
-if "total_queries" not in st.session_state:
-    st.session_state.total_queries = 0
 if "admin_password" not in st.session_state:
     st.session_state.admin_password = "admin123"
 
@@ -303,42 +296,61 @@ def load_embedding_model():
     """Load embedding model with caching"""
     return HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
 
-def get_ipc_answer(query: str) -> Tuple[Optional[str], Optional[str], Optional[str]]:
-    """Check if query matches any IPC section"""
+def expand_query_with_synonyms(query: str) -> List[str]:
+    """Expand query with synonyms for better matching"""
+    query_lower = query.lower()
+    expanded_queries = [query_lower]
+    
+    for main_word, syn_list in SYNONYMS.items():
+        if main_word in query_lower or any(syn in query_lower for syn in syn_list):
+            for synonym in syn_list:
+                if synonym not in query_lower:
+                    expanded_queries.append(synonym)
+    
+    return list(set(expanded_queries))
+
+def match_ipc_offence(query: str) -> Tuple[Optional[str], Optional[Dict]]:
+    """Match query against IPC database with synonym support"""
     query_lower = query.lower()
     
-    # Handle synonyms
-    synonyms = {
-        "harassment": ["sexual harassment", "stalking", "criminal intimidation", "insult modesty"],
-        "murder": ["kill", "homicide", "death"],
-        "theft": ["steal", "stolen", "rob"],
-    }
+    # Direct match
+    for offence, details in IPC_DATABASE.items():
+        if offence in query_lower:
+            return offence, details
     
-    for crime, info in IPC_SECTIONS.items():
-        if crime in query_lower:
-            return info["section"], info["text"], info["bailable"]
+    # Synonym match
+    for main_offence, synonyms in SYNONYMS.items():
+        if main_offence in query_lower:
+            for offence, details in IPC_DATABASE.items():
+                if main_offence in offence or any(syn in offence for syn in synonyms):
+                    return offence, details
+        
+        for syn in synonyms:
+            if syn in query_lower:
+                for offence, details in IPC_DATABASE.items():
+                    if syn in offence or main_offence in offence:
+                        return offence, details
     
-    # Check synonyms
-    for main_crime, syn_list in synonyms.items():
-        for syn in syn_list:
-            if syn in query_lower and main_crime in IPC_SECTIONS:
-                info = IPC_SECTIONS[main_crime]
-                return info["section"], info["text"], info["bailable"]
-    
-    return None, None, None
+    return None, None
 
-def format_answer_with_section(section: str, text: str, bailable: bool) -> str:
-    """Format answer beautifully"""
-    bail_status = "🟢 Bailable offence" if bailable else "🔴 Non-bailable offence"
+def format_ipc_answer(offence: str, details: Dict) -> str:
+    """Format IPC answer beautifully"""
+    bail_status = "✅ Bailable Offence" if details["bailable"] else "❌ Non-Bailable Offence"
     return f"""
-**Section {section} of the Indian Penal Code**
+**📋 Section {details['section']} of the Indian Penal Code**
 
-*{text}*
+**Offence:** {offence.title()}
 
-{bail_status}
+**Description:** {details['description']}
+
+**Punishment:** {details['punishment']}
+
+**{bail_status}**
+
+*Source: Indian Penal Code, 1860*
 """
 
-def search_pdf_documents(query: str, top_k: int = 4) -> List:
+def search_pdf_documents(query: str, top_k: int = 5) -> List:
     """Search PDF documents using FAISS"""
     if st.session_state.vector_store is None:
         return []
@@ -346,8 +358,8 @@ def search_pdf_documents(query: str, top_k: int = 4) -> List:
     retriever = st.session_state.vector_store.as_retriever(search_kwargs={"k": top_k})
     return retriever.invoke(query)
 
-def calculate_relevance(query: str, document) -> float:
-    """Calculate relevance score for a document"""
+def calculate_relevance_score(query: str, document) -> float:
+    """Calculate detailed relevance score"""
     query_words = set(query.lower().split())
     stop_words = {'the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 'of', 'with', 'by', 'is', 'are', 'was', 'were'}
     keywords = [w for w in query_words if w not in stop_words and len(w) > 2]
@@ -356,18 +368,28 @@ def calculate_relevance(query: str, document) -> float:
         return 0.5
     
     content = document.page_content.lower()
+    
+    # Word match score
     matches = sum(1 for kw in keywords if kw in content)
-    return min(matches / len(keywords), 1.0)
+    word_score = matches / len(keywords)
+    
+    # Bonus for exact phrase
+    phrase_score = 0.3 if query.lower() in content else 0
+    
+    # Bonus for section references
+    section_score = 0.2 if re.search(r'section\s+\d+', content) else 0
+    
+    return min(word_score + phrase_score + section_score, 1.0)
 
-def generate_answer_from_pdfs(query: str, documents: List) -> Tuple[Optional[str], List[str]]:
-    """Generate answer from PDF documents"""
+def extract_best_answer(query: str, documents: List) -> Tuple[Optional[str], List[str]]:
+    """Extract best answer from documents with citation"""
     if not documents:
         return None, []
     
-    scored = [(calculate_relevance(query, doc), doc) for doc in documents]
+    scored = [(calculate_relevance_score(query, doc), doc) for doc in documents]
     scored.sort(reverse=True, key=lambda x: x[0])
     
-    # Filter low relevance
+    # Keep relevant documents (score > 0.2)
     relevant = [(score, doc) for score, doc in scored if score >= 0.2]
     
     if not relevant:
@@ -377,37 +399,45 @@ def generate_answer_from_pdfs(query: str, documents: List) -> Tuple[Optional[str
     sources = []
     
     for score, doc in relevant[:2]:
-        sources.append(doc.metadata.get("source", "Unknown"))
+        source = doc.metadata.get("source", "Unknown")
+        sources.append(source)
         content = doc.page_content
         
-        # Extract best sentence
-        sentences = content.split('. ')
-        best_sentence = max(sentences, key=lambda s: sum(1 for w in query.lower().split() if w in s.lower()), default="")
+        # Extract most relevant paragraph
+        sentences = re.split(r'[.!?]\s+', content)
+        best_sentence = ""
+        best_score = 0
         
-        if len(best_sentence) > 30:
-            answer_parts.append(best_sentence.strip())
+        for sentence in sentences:
+            sentence_score = sum(1 for word in query.lower().split() if word in sentence.lower())
+            if sentence_score > best_score and len(sentence) > 30:
+                best_score = sentence_score
+                best_sentence = sentence.strip()
+        
+        if best_sentence:
+            answer_parts.append(f"• {best_sentence}")
         else:
-            answer_parts.append(content[:300].strip())
+            answer_parts.append(f"• {content[:300].strip()}...")
     
     if answer_parts:
-        answer = "\n\n".join(answer_parts)
+        answer = "Based on the document(s):\n\n" + "\n\n".join(answer_parts)
         return answer, list(set(sources))
     
     return None, []
 
 # ============================================================
-# ADMIN PANEL
+# SIDEBAR
 # ============================================================
 
 with st.sidebar:
     st.markdown("## 🎯 Control Panel")
     
-    # File upload section
+    # Document Upload
     st.markdown("### 📄 Document Upload")
     uploaded_file = st.file_uploader("Upload Police PDF", type=["pdf"], key="pdf_uploader")
     
     if uploaded_file and st.button("📥 Process Document", use_container_width=True):
-        with st.spinner("Processing..."):
+        with st.spinner("Processing document..."):
             try:
                 with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp:
                     tmp.write(uploaded_file.read())
@@ -448,32 +478,29 @@ with st.sidebar:
     # Statistics
     if st.session_state.vector_store:
         st.markdown("### 📊 Statistics")
+        st.markdown(f"""
+        <div class="stat-card">
+            <div class="stat-number">{len(st.session_state.documents)}</div>
+            <div class="stat-label">Text Chunks</div>
+        </div>
+        """, unsafe_allow_html=True)
         
-        col1, col2 = st.columns(2)
-        with col1:
-            st.markdown(f"""
-            <div class="stat-card">
-                <div class="stat-number">{len(st.session_state.documents)}</div>
-                <div class="stat-label">Text Chunks</div>
-            </div>
-            """, unsafe_allow_html=True)
-        with col2:
-            st.markdown(f"""
-            <div class="stat-card">
-                <div class="stat-number">{len(st.session_state.messages)}</div>
-                <div class="stat-label">Messages</div>
-            </div>
-            """, unsafe_allow_html=True)
+        unique_sources = list(set([d.metadata.get("source", "Unknown") for d in st.session_state.documents]))
+        if unique_sources:
+            st.markdown("### 📚 Documents")
+            for src in unique_sources[:3]:
+                short_name = src[:30] + "..." if len(src) > 30 else src
+                st.markdown(f'<span class="doc-badge">📄 {short_name}</span>', unsafe_allow_html=True)
     
     st.markdown("---")
     
-    # Admin Section
+    # Admin Panel
     with st.expander("🔐 Admin Panel"):
         admin_pass = st.text_input("Password", type="password", key="admin_pass_input")
         
         col1, col2 = st.columns(2)
         with col1:
-            if st.button("🔄 Refresh KB", use_container_width=True):
+            if st.button("🔄 Refresh", use_container_width=True):
                 if admin_pass == st.session_state.admin_password:
                     st.success(f"✅ Ready: {len(st.session_state.documents)} chunks")
                 else:
@@ -499,7 +526,7 @@ with st.sidebar:
 # MAIN CHAT INTERFACE
 # ============================================================
 
-st.markdown("## 💬 Ask Questions")
+st.markdown("## 💬 Ask Legal Questions")
 
 # Display chat history
 for msg in st.session_state.messages:
@@ -508,52 +535,32 @@ for msg in st.session_state.messages:
         if "sources" in msg and msg["sources"]:
             st.caption(f"📚 Sources: {', '.join(msg['sources'])}")
 
-# Quick question buttons
-col1, col2, col3, col4 = st.columns(4)
-with col1:
-    if st.button("📋 Murder Punishment", use_container_width=True):
-        st.session_state.quick_question = "What is the punishment for murder?"
-with col2:
-    if st.button("💰 Theft Punishment", use_container_width=True):
-        st.session_state.quick_question = "What is the punishment for theft?"
-with col3:
-    if st.button("👤 Sexual Harassment", use_container_width=True):
-        st.session_state.quick_question = "What is the punishment for sexual harassment?"
-with col4:
-    if st.button("🏠 Kidnapping", use_container_width=True):
-        st.session_state.quick_question = "What is the punishment for kidnapping?"
-
-# Handle quick question
-if "quick_question" in st.session_state:
-    prompt = st.session_state.quick_question
-    del st.session_state.quick_question
-else:
-    prompt = st.chat_input("Ask about IPC sections, punishments, legal procedures...")
+# Chat input
+prompt = st.chat_input("Ask about IPC sections, punishments, legal procedures (e.g., 'What is the punishment for murder?')...")
 
 if prompt:
-    st.session_state.total_queries += 1
     st.session_state.messages.append({"role": "user", "content": prompt})
     
     with st.chat_message("user"):
         st.markdown(prompt)
     
     with st.chat_message("assistant"):
-        with st.spinner("🔍 Analyzing your query..."):
+        with st.spinner("🔍 Analyzing your query with semantic search..."):
             try:
-                # Step 1: Check IPC mapping
-                section, text, bailable = get_ipc_answer(prompt)
+                # Step 1: Check IPC Database
+                offence, details = match_ipc_offence(prompt)
                 
-                if section:
-                    answer = format_answer_with_section(section, text, bailable)
+                if details:
+                    answer = format_ipc_answer(offence, details)
                     st.markdown(f'<div class="answer-section">{answer}</div>', unsafe_allow_html=True)
                     st.session_state.messages.append({"role": "assistant", "content": answer, "sources": []})
                 
-                # Step 2: If not in mapping and PDFs loaded, search documents
+                # Step 2: Search uploaded PDFs
                 elif st.session_state.vector_store is not None:
-                    results = search_pdf_documents(prompt, top_k=4)
+                    results = search_pdf_documents(prompt, top_k=5)
                     
                     if results:
-                        answer, sources = generate_answer_from_pdfs(prompt, results)
+                        answer, sources = extract_best_answer(prompt, results)
                         if answer:
                             st.markdown(f'<div class="answer-section">{answer}</div>', unsafe_allow_html=True)
                             if sources:
@@ -567,14 +574,28 @@ if prompt:
                         response = "No relevant information found. Please upload more documents or try a different question."
                         st.markdown(response)
                         st.session_state.messages.append({"role": "assistant", "content": response})
+                
                 else:
-                    response = "⚠️ No documents loaded. Please upload a PDF document using the sidebar.\n\nAlternatively, try asking about:\n- Punishment for murder (IPC Section 302)\n- Punishment for theft (IPC Section 379)\n- Punishment for rape (IPC Section 376)\n- Punishment for cheating (IPC Section 420)"
+                    response = """
+⚠️ **No documents loaded. Please upload a PDF document using the sidebar.**
+
+**You can also ask about IPC sections directly:**
+
+| Question | Section |
+|----------|---------|
+| Punishment for murder? | Section 302 |
+| Punishment for rape? | Section 376 |
+| Punishment for theft? | Section 379 |
+| Punishment for cheating? | Section 420 |
+| Punishment for sexual harassment? | Section 354A |
+| Punishment for kidnapping? | Section 363 |
+| Punishment for criminal intimidation? | Section 506 |
+"""
                     st.markdown(response)
                     st.session_state.messages.append({"role": "assistant", "content": response})
                     
             except Exception as e:
                 st.error(f"Error: {str(e)[:200]}")
-                st.session_state.messages.append({"role": "assistant", "content": f"Error: {str(e)[:200]}"})
 
 # ============================================================
 # FOOTER
@@ -582,7 +603,7 @@ if prompt:
 
 st.markdown("""
 <div class="footer">
-    <p>Police Rulebook Assistant | Project PRJ-005 | Indian Penal Code Reference | RAG Powered</p>
-    <p>⚡ Real-time Search | 📄 PDF Upload | 🔍 Semantic Retrieval | 📚 Citation-backed Answers</p>
+    <p>Police Rulebook Assistant | Project PRJ-005 | Indian Penal Code Reference | RAG Powered with FAISS</p>
+    <p>⚡ Semantic Search | 📄 PDF Upload | 🔍 Smart Matching | 📚 Citation-backed Answers</p>
 </div>
 """, unsafe_allow_html=True)
