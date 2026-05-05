@@ -1,15 +1,11 @@
 import streamlit as st
-import tempfile
-import os
 import requests
-from typing import List, Dict
-import re
+import time
 
-# LangChain imports
-from langchain_community.document_loaders import PyPDFLoader
-from langchain_text_splitters import RecursiveCharacterTextSplitter
-from langchain_community.embeddings import HuggingFaceEmbeddings
-from langchain_community.vectorstores import FAISS
+# ✅ CHANGE THIS TO YOUR RENDER BACKEND URL AFTER DEPLOYMENT
+# For local testing: http://localhost:8000
+# For deployed backend: https://your-backend.onrender.com
+API_URL = "http://localhost:8000"
 
 st.set_page_config(
     page_title="Police Rulebook Assistant",
@@ -35,9 +31,9 @@ st.markdown("""
     .stat-number-green { font-size: 2rem; font-weight: 700; color: #10b981; }
     .stat-label { font-size: 0.7rem; color: #8b949e; margin-top: 0.3rem; }
     .doc-badge { background: rgba(16,185,129,0.15); color: #10b981; padding: 0.3rem 0.8rem; border-radius: 20px; font-size: 0.7rem; display: inline-block; margin: 0.25rem; }
-    .upload-card { background: #131823; border-radius: 15px; padding: 1rem; margin-bottom: 1rem; border: 2px dashed rgba(220,38,38,0.4); text-align: center; }
-    .stButton button { background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%); color: white; border: none; border-radius: 10px; padding: 0.5rem 1rem; font-weight: 600; width: 100%; }
-    .answer-section { background: linear-gradient(135deg, #0f1a14 0%, #0d1f18 100%); padding: 1.2rem; border-radius: 15px; margin: 0.5rem 0; line-height: 1.7; border-left: 4px solid #10b981; color: #e6edf3; }
+    .stButton button { background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%); color: white; border: none; border-radius: 10px; padding: 0.5rem 1rem; font-weight: 600; width: 100%; transition: all 0.3s ease; }
+    .stButton button:hover { transform: translateY(-2px); box-shadow: 0 5px 15px rgba(220,38,38,0.4); }
+    .answer-section { background: linear-gradient(135deg, #0f1a14 0%, #0d1f18 100%); padding: 1.5rem; border-radius: 15px; margin: 0.5rem 0; line-height: 1.8; border-left: 4px solid #10b981; color: #e6edf3; font-size: 1rem; }
     .footer { text-align: center; padding: 1.5rem; color: #8b949e; font-size: 0.75rem; border-top: 1px solid #21262d; margin-top: 2rem; }
 </style>
 """, unsafe_allow_html=True)
@@ -53,334 +49,101 @@ st.markdown("""
 # Initialize session state
 if "messages" not in st.session_state:
     st.session_state.messages = []
-if "vector_store" not in st.session_state:
-    st.session_state.vector_store = None
-if "documents_loaded" not in st.session_state:
-    st.session_state.documents_loaded = False
-if "embeddings" not in st.session_state:
-    st.session_state.embeddings = None
-if "all_chunks" not in st.session_state:
-    st.session_state.all_chunks = []
-if "pdf_list" not in st.session_state:
-    st.session_state.pdf_list = []
-if "total_chunks_count" not in st.session_state:
-    st.session_state.total_chunks_count = 0
+if "api_connected" not in st.session_state:
+    st.session_state.api_connected = False
 
-# ============================================================
-# GITHUB CONFIGURATION
-# ============================================================
-
-GITHUB_USERNAME = "Barath-RK"
-GITHUB_REPO = "police-rulebook-assistant-new"
-GITHUB_BRANCH = "main"
-DOCUMENTS_FOLDER = "Documents"
-
-RAW_BASE_URL = f"https://raw.githubusercontent.com/{GITHUB_USERNAME}/{GITHUB_REPO}/{GITHUB_BRANCH}/{DOCUMENTS_FOLDER}/"
-
-# ============================================================
-# FUNCTIONS
-# ============================================================
-
-def get_pdf_files_from_github():
+# Check API connection
+def check_api():
     try:
-        api_url = f"https://api.github.com/repos/{GITHUB_USERNAME}/{GITHUB_REPO}/contents/{DOCUMENTS_FOLDER}"
-        response = requests.get(api_url)
+        response = requests.get(f"{API_URL}/", timeout=3)
         if response.status_code == 200:
-            files = response.json()
-            pdf_files = []
-            for file in files:
-                if file['name'].lower().endswith('.pdf'):
-                    pdf_files.append({
-                        'name': file['name'],
-                        'raw_url': RAW_BASE_URL + file['name']
-                    })
-            return pdf_files
-        return []
+            st.session_state.api_connected = True
+            return True
     except:
-        return []
+        st.session_state.api_connected = False
+    return False
 
-def load_pdf_from_url(url: str, filename: str) -> List:
-    try:
-        response = requests.get(url, timeout=30)
-        response.raise_for_status()
-        with tempfile.NamedTemporaryFile(delete=False, suffix='.pdf') as tmp_file:
-            tmp_file.write(response.content)
-            tmp_path = tmp_file.name
-        loader = PyPDFLoader(tmp_path)
-        documents = loader.load()
-        for doc in documents:
-            doc.metadata["source"] = filename
-        os.unlink(tmp_path)
-        return documents
-    except:
-        return []
-
-def process_uploaded_pdf(uploaded_file):
-    try:
-        file_bytes = uploaded_file.getvalue()
-        with tempfile.NamedTemporaryFile(delete=False, suffix='.pdf') as tmp_file:
-            tmp_file.write(file_bytes)
-            tmp_path = tmp_file.name
-        loader = PyPDFLoader(tmp_path)
-        documents = loader.load()
-        if not documents:
-            return []
-        splitter = RecursiveCharacterTextSplitter(
-            chunk_size=800,
-            chunk_overlap=150,
-            separators=["\n\n", "\n", ". ", " ", ""]
-        )
-        chunks = splitter.split_documents(documents)
-        for j, chunk in enumerate(chunks):
-            chunk.metadata["source"] = uploaded_file.name
-            chunk.metadata["chunk_id"] = j
-            chunk.metadata["total_chunks"] = len(chunks)
-        os.unlink(tmp_path)
-        return chunks
-    except:
-        return []
-
-def add_to_vector_store(chunks):
-    if st.session_state.vector_store is None:
-        st.session_state.vector_store = FAISS.from_documents(chunks, st.session_state.embeddings)
-    else:
-        st.session_state.vector_store.add_documents(chunks)
-    st.session_state.all_chunks.extend(chunks)
-    st.session_state.total_chunks_count = len(st.session_state.all_chunks)
-
-def load_all_documents():
-    all_chunks = []
-    loaded_files = []
-    pdf_files = get_pdf_files_from_github()
-    if not pdf_files:
-        return [], []
-    if st.session_state.embeddings is None:
-        st.session_state.embeddings = HuggingFaceEmbeddings(
-            model_name="sentence-transformers/all-MiniLM-L6-v2"
-        )
-    splitter = RecursiveCharacterTextSplitter(
-        chunk_size=800,
-        chunk_overlap=150,
-        separators=["\n\n", "\n", ". ", " ", ""]
-    )
-    for pdf_info in pdf_files:
-        documents = load_pdf_from_url(pdf_info['raw_url'], pdf_info['name'])
-        if documents:
-            chunks = splitter.split_documents(documents)
-            for j, chunk in enumerate(chunks):
-                chunk.metadata["source"] = pdf_info['name']
-                chunk.metadata["chunk_id"] = j
-                chunk.metadata["total_chunks"] = len(chunks)
-            all_chunks.extend(chunks)
-            loaded_files.append(pdf_info['name'])
-    return all_chunks, loaded_files
-
-# ============================================================
-# DIRECT IPC SEARCH FUNCTION
-# ============================================================
-
-def find_ipc_answer(query: str, all_chunks: List) -> str:
-    """Directly search for IPC sections and punishments"""
-    query_lower = query.lower()
-    
-    # Common IPC question mappings
-    ipc_mappings = {
-        "punishment for murder": "302",
-        "murder punishment": "302",
-        "murder": "302",
-        "theft punishment": "378",
-        "punishment for theft": "378",
-        "robbery punishment": "392",
-        "punishment for robbery": "392",
-        "rape punishment": "376",
-        "punishment for rape": "376",
-        "cheating punishment": "420",
-        "punishment for cheating": "420",
-        "dowry death": "304b",
-        "dowry death punishment": "304b",
-        "criminal breach of trust": "406",
-        "defamation punishment": "500",
-        "hurt punishment": "323",
-        "grievous hurt": "325",
-    }
-    
-    # Find which section we need
-    section_number = None
-    for key, section in ipc_mappings.items():
-        if key in query_lower:
-            section_number = section
-            break
-    
-    # If we know the section, search for it directly
-    if section_number:
-        search_pattern = f"section {section_number}"
-        search_pattern2 = f"section {section_number}." if section_number.isdigit() else f"section {section_number}"
-        
-        best_chunk = None
-        best_content = ""
-        
-        for chunk in all_chunks:
-            content = chunk.page_content.lower()
-            source = chunk.metadata.get("source", "").lower()
-            
-            # Check if this chunk contains the section
-            if search_pattern in content or search_pattern2 in content:
-                # Prefer IPC documents
-                if "indian penal code" in source or "ipc" in source or "penal" in source:
-                    best_chunk = chunk
-                    break
-                elif best_chunk is None:
-                    best_chunk = chunk
-        
-        if best_chunk:
-            content = best_chunk.page_content
-            
-            # Extract relevant part around the section
-            lines = content.split('\n')
-            relevant_lines = []
-            found = False
-            
-            for i, line in enumerate(lines):
-                if search_pattern in line.lower() or search_pattern2 in line.lower():
-                    found = True
-                    # Take this line and next 2-3 lines
-                    for j in range(i, min(i + 4, len(lines))):
-                        if lines[j].strip():
-                            relevant_lines.append(lines[j].strip())
-                    break
-            
-            if relevant_lines:
-                answer = " ".join(relevant_lines)
-                # Clean up
-                answer = re.sub(r'\s+', ' ', answer)
-                return answer
-    
-    # Fallback to general search
-    best_chunks = []
-    for chunk in all_chunks:
-        content = chunk.page_content.lower()
-        source = chunk.metadata.get("source", "").lower()
-        
-        # Check if content contains relevant keywords
-        if any(word in content for word in ["punishment", "imprisonment", "death", "fine", "section"]):
-            # Prioritize IPC
-            if "indian penal code" in source or "ipc" in source or "penal" in source:
-                best_chunks.append((3, chunk))
-            else:
-                best_chunks.append((1, chunk))
-    
-    best_chunks.sort(reverse=True, key=lambda x: x[0])
-    
-    if best_chunks:
-        top_chunk = best_chunks[0][1]
-        content = top_chunk.page_content
-        
-        # Extract sentences containing punishment keywords
-        sentences = re.split(r'[.!?]\s+', content)
-        relevant = []
-        for sentence in sentences:
-            if any(word in sentence.lower() for word in ["punishment", "section", "imprisonment", "death", "fine", "shall be punished"]):
-                if len(sentence) > 20:
-                    relevant.append(sentence.strip())
-        
-        if relevant:
-            return ". ".join(relevant[:3])
-        else:
-            return content[:500]
-    
-    return None
-
-# ============================================================
-# SIDEBAR
-# ============================================================
-
+# Sidebar
 with st.sidebar:
     st.markdown("## 🎯 Knowledge Dashboard")
     
-    if st.session_state.documents_loaded and st.session_state.pdf_list:
-        st.markdown(f"""
-        <div class="stat-card-red">
-            <div class="stat-number-red">{len(st.session_state.pdf_list)}</div>
-            <div class="stat-label">Documents Loaded</div>
-        </div>
-        <div class="stat-card-green">
-            <div class="stat-number-green">{st.session_state.total_chunks_count}</div>
-            <div class="stat-label">Text Chunks</div>
-        </div>
-        """, unsafe_allow_html=True)
-        
-        st.markdown("### 📚 Document Library")
-        for doc in st.session_state.pdf_list[:5]:
-            short_name = doc[:35] + "..." if len(doc) > 35 else doc
-            st.markdown(f'<span class="doc-badge">📄 {short_name}</span>', unsafe_allow_html=True)
+    # Check API status
+    api_status = check_api()
+    
+    if api_status:
+        try:
+            status = requests.get(f"{API_URL}/status", timeout=5).json()
+            st.markdown(f"""
+            <div class="stat-card-red">
+                <div class="stat-number-red">{status.get('documents_loaded', 0)}</div>
+                <div class="stat-label">Documents Loaded</div>
+            </div>
+            <div class="stat-card-green">
+                <div class="stat-number-green">{status.get('chunks', 0)}</div>
+                <div class="stat-label">Text Chunks</div>
+            </div>
+            """, unsafe_allow_html=True)
+            
+            if status.get('pdfs'):
+                st.markdown("### 📚 Document Library")
+                for doc in status.get('pdfs', [])[:5]:
+                    short_name = doc[:35] + "..." if len(doc) > 35 else doc
+                    st.markdown(f'<span class="doc-badge">📄 {short_name}</span>', unsafe_allow_html=True)
+        except Exception as e:
+            st.error(f"Status error: {e}")
+    else:
+        st.warning("⚠️ Backend Not Connected")
+        st.info(f"Make sure backend is running at: {API_URL}")
     
     st.markdown("---")
     
-    st.markdown("## 📤 Upload Document")
-    st.markdown('<div class="upload-card">', unsafe_allow_html=True)
-    uploaded_file = st.file_uploader("Add PDF to Knowledge Base", type=["pdf"], key="pdf_uploader")
-    
-    if uploaded_file:
-        if st.button("📥 Process & Add", use_container_width=True):
-            with st.spinner(f"Processing {uploaded_file.name}..."):
-                chunks = process_uploaded_pdf(uploaded_file)
-                if chunks:
-                    if st.session_state.embeddings is None:
-                        st.session_state.embeddings = HuggingFaceEmbeddings(
-                            model_name="sentence-transformers/all-MiniLM-L6-v2"
-                        )
-                    add_to_vector_store(chunks)
-                    if uploaded_file.name not in st.session_state.pdf_list:
-                        st.session_state.pdf_list.append(uploaded_file.name)
-                    st.success(f"✅ Added {uploaded_file.name}")
-                    st.rerun()
-                else:
-                    st.error("Processing failed")
-    st.markdown('</div>', unsafe_allow_html=True)
+    if st.button("🔄 Refresh Knowledge Base", use_container_width=True):
+        if api_status:
+            with st.spinner("Refreshing documents from GitHub..."):
+                try:
+                    response = requests.post(f"{API_URL}/refresh", timeout=30)
+                    if response.status_code == 200:
+                        st.success("✅ Knowledge base refreshed!")
+                        st.rerun()
+                    else:
+                        st.error("Refresh failed")
+                except:
+                    st.error("Cannot connect to backend")
+        else:
+            st.error("Backend not connected")
     
     st.markdown("---")
     
-    if st.button("🔄 Sync with GitHub", use_container_width=True):
-        st.session_state.documents_loaded = False
-        st.session_state.all_chunks = []
-        st.session_state.pdf_list = []
-        st.rerun()
+    st.markdown("### 💡 Quick IPC References")
+    st.markdown("""
+    | Section | Offence | Punishment |
+    |---------|---------|------------|
+    | 302 | Murder | Death/Life imprisonment |
+    | 376 | Rape | 10 years to life |
+    | 379 | Theft | 3 years imprisonment |
+    | 392 | Robbery | 10 years imprisonment |
+    | 420 | Cheating | 7 years imprisonment |
+    | 304B | Dowry Death | 7 years to life |
+    | 363 | Kidnapping | 7 years imprisonment |
+    | 406 | Breach of Trust | 3 years imprisonment |
+    | 500 | Defamation | 2 years imprisonment |
+    """)
     
-    if st.button("🗑️ Clear Chat", use_container_width=True):
-        st.session_state.messages = []
-        st.rerun()
+    st.markdown("---")
+    
+    if not api_status:
+        st.info("💡 **How to start locally:**\n\n```bash\npython -m uvicorn backend:app --reload --port 8000\n```\n```bash\nstreamlit run app.py\n```")
 
-# ============================================================
-# LOAD DOCUMENTS
-# ============================================================
-
-if not st.session_state.documents_loaded:
-    with st.spinner("📚 Loading knowledge base from GitHub..."):
-        chunks, loaded_files = load_all_documents()
-        if chunks:
-            if st.session_state.embeddings is None:
-                st.session_state.embeddings = HuggingFaceEmbeddings(
-                    model_name="sentence-transformers/all-MiniLM-L6-v2"
-                )
-            st.session_state.all_chunks = chunks
-            st.session_state.vector_store = FAISS.from_documents(chunks, st.session_state.embeddings)
-            st.session_state.documents_loaded = True
-            st.session_state.pdf_list = loaded_files
-            st.session_state.total_chunks_count = len(chunks)
-            st.success(f"✅ Loaded {len(loaded_files)} documents")
-            st.rerun()
-
-# ============================================================
-# MAIN CHAT AREA
-# ============================================================
-
+# Main chat area
 st.markdown("## 💬 Ask Legal Questions")
 
+# Display chat history
 for message in st.session_state.messages:
     with st.chat_message(message["role"]):
         st.markdown(message["content"])
 
-prompt = st.chat_input("Ask about IPC sections, punishments, CrPC, or Cyber Laws...")
+# Chat input
+prompt = st.chat_input("Ask about IPC sections, punishments, legal procedures...")
 
 if prompt:
     st.session_state.messages.append({"role": "user", "content": prompt})
@@ -388,23 +151,26 @@ if prompt:
         st.markdown(prompt)
     
     with st.chat_message("assistant"):
-        if st.session_state.total_chunks_count == 0:
-            response = "⚠️ No documents loaded. Please upload PDFs to continue."
+        if not st.session_state.api_connected:
+            response = "⚠️ Backend not connected.\n\n**To fix this:**\n1. Make sure FastAPI is running: `python -m uvicorn backend:app --reload --port 8000`\n2. Check the URL in `API_URL` variable matches your backend."
             st.markdown(response)
         else:
-            with st.spinner(f"🔍 Searching {st.session_state.total_chunks_count} legal documents..."):
+            with st.spinner("🔍 Searching through legal documents..."):
                 try:
-                    # Use direct IPC search
-                    answer = find_ipc_answer(prompt, st.session_state.all_chunks)
+                    api_response = requests.post(f"{API_URL}/ask", json={"query": prompt}, timeout=30)
                     
-                    if answer:
+                    if api_response.status_code == 200:
+                        result = api_response.json()
+                        answer = result.get("answer", "No answer found.")
                         st.markdown(f'<div class="answer-section">{answer}</div>', unsafe_allow_html=True)
                         st.session_state.messages.append({"role": "assistant", "content": answer})
                     else:
-                        response = "No specific information found. Try asking about specific IPC sections like 'punishment for murder under IPC'."
-                        st.markdown(response)
-                        st.session_state.messages.append({"role": "assistant", "content": response})
+                        st.error(f"API Error: {api_response.status_code}")
                         
+                except requests.exceptions.ConnectionError:
+                    st.error(f"Cannot connect to backend at {API_URL}")
+                except requests.exceptions.Timeout:
+                    st.error("Request timed out. Backend might be waking up (cold start). Try again.")
                 except Exception as e:
                     st.error(f"Error: {str(e)[:200]}")
 
