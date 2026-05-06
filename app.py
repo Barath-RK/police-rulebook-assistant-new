@@ -26,20 +26,26 @@ import re
 import requests
 import json
 import logging
-import hashlib
 from datetime import datetime
 from typing import List, Dict, Optional, Tuple
 from difflib import SequenceMatcher
-from dataclasses import dataclass
-from enum import Enum
-import base64
-from pathlib import Path
 
 # LangChain imports
-from langchain_community.document_loaders import PyPDFLoader, TextLoader
+from langchain_community.document_loaders import PyPDFLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_community.embeddings import HuggingFaceEmbeddings
 from langchain_community.vectorstores import FAISS
+
+# ============================================================
+# PAGE CONFIGURATION - MUST BE FIRST Streamlit COMMAND
+# ============================================================
+
+st.set_page_config(
+    page_title="Police Rulebook Assistant - Complete Edition",
+    page_icon="⚖️",
+    layout="wide",
+    initial_sidebar_state="expanded"
+)
 
 # ============================================================
 # LOGGING CONFIGURATION
@@ -56,23 +62,21 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # ============================================================
-# ENVIRONMENT VARIABLES (for production)
+# CONFIGURATION (Fixed - no direct assignment to st.secrets)
 # ============================================================
 
-# For production, use st.secrets instead of hardcoded passwords
-if 'ADMIN_PASSWORD' not in st.secrets:
-    st.secrets['ADMIN_PASSWORD'] = 'admin123'
+# For production, use st.secrets for password (read-only)
+# For development, use default password
+def get_admin_password():
+    """Get admin password from secrets or use default"""
+    try:
+        # This works in production with st.secrets configured
+        return st.secrets.get("ADMIN_PASSWORD", "admin123")
+    except:
+        # Fallback for local development
+        return "admin123"
 
-# ============================================================
-# PAGE CONFIGURATION
-# ============================================================
-
-st.set_page_config(
-    page_title="Police Rulebook Assistant - Complete Edition",
-    page_icon="⚖️",
-    layout="wide",
-    initial_sidebar_state="expanded"
-)
+ADMIN_PASSWORD = "admin123"  # Default password
 
 # ============================================================
 # GITHUB CONFIGURATION
@@ -894,8 +898,7 @@ def load_all_documents():
 
 def verify_admin_password(password: str) -> bool:
     """Verify admin password"""
-    # In production, use st.secrets
-    return password == st.secrets.get('ADMIN_PASSWORD', 'admin123')
+    return password == ADMIN_PASSWORD
 
 def refresh_knowledge_base():
     """Refresh the knowledge base by reloading documents"""
@@ -1023,6 +1026,14 @@ st.markdown("""
     .stButton button:hover {
         transform: translateY(-2px);
         box-shadow: 0 8px 20px rgba(220, 38, 38, 0.3);
+    }
+    
+    /* Fix for chat input */
+    .stChatInput input {
+        background: rgba(19, 24, 35, 0.8);
+        border: 1px solid rgba(255,255,255,0.1);
+        border-radius: 25px;
+        color: white;
     }
 </style>
 """, unsafe_allow_html=True)
