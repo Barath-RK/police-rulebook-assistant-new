@@ -441,7 +441,7 @@ Robbery includes force or threat, while theft does not.
 This project is licensed under the **MIT License**.
 
 ```txt
-MIT License © 2026 Barath R K PDKV
+MIT License © 2026 Barath R K 
 ```
 
 ---
