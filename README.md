@@ -1,218 +1,285 @@
-# 👮‍♂️ Police Rulebook Assistant
-
-### *AI-Powered RAG Document Intelligence System for Law Enforcement & Public Safety*
+<!-- ========================================================= -->
+<!-- 🚔 POLICE RULEBOOK ASSISTANT -->
+<!-- ========================================================= -->
 
 <div align="center">
 
-<img src="https://img.shields.io/badge/GENAI-RAG%20Assistant-blue?style=for-the-badge&logo=openai&logoColor=white" />
-<img src="https://img.shields.io/badge/FastAPI-Backend-green?style=for-the-badge&logo=fastapi" />
-<img src="https://img.shields.io/badge/Streamlit-Frontend-red?style=for-the-badge&logo=streamlit" />
-<img src="https://img.shields.io/badge/LangChain-AI%20Framework-yellow?style=for-the-badge" />
-<img src="https://img.shields.io/badge/FAISS-Vector%20Database-purple?style=for-the-badge" />
-<img src="https://img.shields.io/badge/License-MIT-success?style=for-the-badge" />
+<img src="https://capsule-render.vercel.app/api?type=waving&height=260&color=0:000428,50:004e92,100:000428&text=POLICE%20RULEBOOK%20ASSISTANT&fontSize=42&fontColor=ffffff&animation=fadeIn&fontAlignY=38&desc=AI-Powered%20RAG%20Legal%20Document%20Assistant&descAlignY=58" width="100%" />
 
-<br><br>
+# 👮 Police Rulebook Assistant
+### ⚡ AI-Powered Public Safety Document Intelligence Platform
 
-# 🚔 Police Rulebook Assistant
+<p align="center">
 
-### *Project Code: PRJ-005*
+<img src="https://img.shields.io/badge/Project-PRJ--005-blue?style=for-the-badge" />
+<img src="https://img.shields.io/badge/Domain-Public%20Safety-red?style=for-the-badge" />
+<img src="https://img.shields.io/badge/Category-RAG%20Document%20Assistant-black?style=for-the-badge" />
+<img src="https://img.shields.io/badge/Focus-GenAI-success?style=for-the-badge" />
+<img src="https://img.shields.io/badge/License-MIT-green?style=for-the-badge" />
 
-### 🧑‍💻 Developed By
+</p>
 
-## **Barath R K PDKV**
-
-**Reg No:** 411623149004
-**Department:** Cyber Security
+<p align="center">
+<img src="https://img.shields.io/badge/Frontend-Streamlit-ff4b4b?style=flat-square&logo=streamlit&logoColor=white" />
+<img src="https://img.shields.io/badge/Backend-FastAPI-009688?style=flat-square&logo=fastapi&logoColor=white" />
+<img src="https://img.shields.io/badge/AI-LangChain-black?style=flat-square" />
+<img src="https://img.shields.io/badge/Database-FAISS-purple?style=flat-square" />
+<img src="https://img.shields.io/badge/Embeddings-HuggingFace-yellow?style=flat-square" />
+<img src="https://img.shields.io/badge/Deployment-Streamlit%20Cloud-red?style=flat-square&logo=streamlit" />
+</p>
 
 <br>
 
-### 🌐 Live Project Links
+# 👨‍💻 Developed By
 
-[![Live Demo](https://img.shields.io/badge/🚀_Live_Demo-Visit_Now-red?style=for-the-badge)](https://police-rulebook-assistant.streamlit.app)
+## **Barath R K PDKV**
+### 🎓 Department of Cyber Security  
+### 🆔 Reg No: 411623149004
 
-[![GitHub Repository](https://img.shields.io/badge/💻_GitHub-Repository-black?style=for-the-badge\&logo=github)](https://github.com/Barath-RK/police-rulebook-assistant-new)
+<br>
 
-[![MIT License](https://img.shields.io/badge/📜_MIT-License-green?style=for-the-badge)](LICENSE)
+<a href="https://police-rulebook-assistant.streamlit.app">
+  <img src="https://img.shields.io/badge/🚀%20Live%20Demo-Visit%20Application-ff0000?style=for-the-badge" />
+</a>
+
+<a href="https://github.com/Barath-RK/police-rulebook-assistant-new">
+  <img src="https://img.shields.io/badge/💻%20GitHub-Repository-black?style=for-the-badge&logo=github" />
+</a>
 
 </div>
 
 ---
 
-# 📌 Project Overview
+# 🌟 Project Overview
 
-The **Police Rulebook Assistant** is an advanced **Retrieval-Augmented Generation (RAG)** based AI assistant designed for **law enforcement departments**, **public safety organizations**, and **citizen support systems**.
+**Police Rulebook Assistant** is a next-generation AI-powered legal document assistant developed for police departments and public safety organizations.
 
-The platform enables users to upload and search through:
+The system uses **Retrieval-Augmented Generation (RAG)** architecture to intelligently search, retrieve, and generate answers from legal and procedural documents.
 
-* 📘 Police SOPs
-* 📑 IPC/CrPC legal manuals
-* 📝 Complaint filing procedures
-* 📂 Investigation guidelines
-* 📚 Citizen support documentation
+This platform helps officers, administrators, and citizens quickly access important information from:
 
-Using **Natural Language Processing (NLP)** and **Generative AI**, the assistant provides:
+✅ Police SOP Manuals  
+✅ IPC / CrPC Legal Documents  
+✅ Complaint Filing Procedures  
+✅ Citizen Support Documents  
+✅ Investigation Guidelines  
+✅ Public Safety Rulebooks  
 
-✅ Accurate Answers
-✅ Citation-backed Responses
-✅ Semantic Document Search
-✅ Intelligent Retrieval
-✅ Secure Knowledge Base Management
+The assistant delivers:
 
----
-
-# 🎯 Core Objectives
-
-✔ Build an AI-powered legal document assistant
-✔ Improve accessibility to police documentation
-✔ Reduce manual searching time
-✔ Provide citation-backed legal responses
-✔ Demonstrate practical implementation of RAG architecture
-✔ Deploy a scalable and modern GenAI solution
+✔ Accurate AI-generated answers  
+✔ Citation-backed legal responses  
+✔ Semantic search capabilities  
+✔ Fast document retrieval  
+✔ Smart chatbot interaction  
 
 ---
 
-# ✨ Key Features
+# 🎯 Project Objectives
 
-| 🚀 Feature                | 📖 Description                                               |
-| ------------------------- | ------------------------------------------------------------ |
-| 📄 Document Upload        | Upload PDFs, SOPs, legal manuals, acts & procedure documents |
-| 🧠 AI Semantic Search     | FAISS-powered similarity search using embeddings             |
-| 💬 Intelligent Chatbot    | Ask questions in natural language                            |
-| 📚 Citation-Based Answers | Every response includes document references                  |
-| 🔐 Admin Panel            | Secure admin management & KB refresh                         |
-| 🕘 Chat History           | Conversation logging & retrieval                             |
-| 🌐 GitHub Auto Loader     | Automatically loads PDFs from repository                     |
-| ⚡ Fast Retrieval          | Optimized vector search for quick responses                  |
-| 🛡 Access Control         | Basic authentication for admin functionalities               |
-| 📊 Scalable Architecture  | Built with modular backend structure                         |
+The primary objective of this project is to modernize legal document access using Artificial Intelligence.
+
+### Key Goals
+
+- 📚 Simplify police document search
+- ⚡ Reduce manual searching time
+- 🧠 Implement intelligent RAG workflows
+- 🔍 Improve legal information accessibility
+- 🤖 Build an AI-powered chatbot assistant
+- 🛡️ Provide secure admin document management
+- 🌐 Create a scalable public safety AI platform
 
 ---
 
-# 🧠 System Architecture
+# 🖼️ Application Preview
 
-```text
-                ┌─────────────────────┐
-                │     User Query      │
-                └─────────┬───────────┘
-                          │
-                          ▼
-                ┌─────────────────────┐
-                │    Streamlit UI     │
-                └─────────┬───────────┘
-                          │
-                          ▼
-                ┌─────────────────────┐
-                │     FastAPI API     │
-                └─────────┬───────────┘
-                          │
-                          ▼
-                ┌─────────────────────┐
-                │     LangChain       │
-                │  RAG Pipeline Logic │
-                └─────────┬───────────┘
-                          │
-          ┌───────────────┴────────────────┐
-          ▼                                ▼
-┌──────────────────┐             ┌──────────────────┐
-│ HuggingFace Emb. │             │    FAISS DB      │
-└──────────────────┘             └──────────────────┘
-          │                                │
-          └───────────────┬────────────────┘
-                          ▼
-                ┌─────────────────────┐
-                │  Citation Response  │
-                └─────────────────────┘
+# 🏠 Main Dashboard
+
+<p align="center">
+<img width="100%" src="YOUR_DASHBOARD_IMAGE" />
+</p>
+
+<p align="center">
+⚡ Smart Dashboard • AI Legal Search • Real-Time Assistance
+</p>
+
+---
+
+# 📂 File Upload & Document Validation
+
+<p align="center">
+<img width="90%" src="YOUR_UPLOAD_IMAGE" />
+</p>
+
+<p align="center">
+📄 PDF Parsing • Knowledge Base Creation • AI Document Processing
+</p>
+
+---
+
+# 🔐 Admin Panel & Management
+
+<p align="center">
+<img width="55%" src="https://github.com/user-attachments/assets/5f69c0f5-6bd5-48ed-a746-d422346dd219" />
+</p>
+
+<p align="center">
+🛡️ Secure Access • Admin Controls • Document Refresh Workflow
+</p>
+
+---
+
+# 💬 AI Chatbot Interface
+
+<p align="center">
+<img width="90%" src="YOUR_CHATBOT_IMAGE" />
+</p>
+
+<p align="center">
+🤖 Intelligent Q&A • Citation-Based Responses • Legal AI Assistant
+</p>
+
+---
+
+# 🕘 Chat History Logging
+
+<p align="center">
+<img width="40%" src="https://github.com/user-attachments/assets/102d8c0c-680d-4bfd-aecd-28659ae2b5a9" />
+</p>
+
+<p align="center">
+📜 Conversation Tracking • User Query History • Session Management
+</p>
+
+---
+
+# ⚡ Core Features
+
+# 🧠 AI-Powered Legal Assistant
+
+The chatbot uses advanced AI workflows to understand and process legal and procedural queries intelligently.
+
+### Supported Queries
+
+- ⚖️ IPC Sections
+- 📘 Police Rules
+- 📝 Complaint Filing Procedures
+- 🚨 FIR Guidelines
+- 📂 SOP Retrieval
+- 👮 Investigation Procedures
+
+---
+
+# 📚 RAG-Based Document Retrieval
+
+The platform uses a Retrieval-Augmented Generation pipeline for accurate information retrieval.
+
+### Features
+
+✅ Semantic Search  
+✅ Citation-Based Answers  
+✅ Context-Aware AI Responses  
+✅ Fast Similarity Search  
+✅ Vector Database Retrieval  
+
+---
+
+# 📄 Smart PDF Processing
+
+The assistant automatically processes uploaded documents.
+
+### Workflow
+
+- PDF Upload
+- Text Extraction
+- Chunk Generation
+- Embedding Creation
+- Vector Storage
+- AI Retrieval
+
+---
+
+# 🔐 Admin Knowledge Base Management
+
+Admins can manage and refresh the legal knowledge base securely.
+
+### Admin Functionalities
+
+- Upload new documents
+- Refresh vector database
+- Manage knowledge sources
+- Monitor chatbot responses
+- Control access permissions
+
+---
+
+# 🕘 Chat History System
+
+The platform stores user interactions for:
+
+- Faster query understanding
+- Better response quality
+- Session tracking
+- Conversation review
+
+---
+
+# ⚡ Semantic Search Engine
+
+FAISS vector search enables high-speed similarity matching for legal documents.
+
+### Benefits
+
+- Faster legal retrieval
+- Intelligent matching
+- Accurate context understanding
+- Improved answer relevance
+
+---
+
+# 🎨 UI/UX Highlights
+
+✨ Modern Responsive Interface  
+✨ Real-Time Chat Experience  
+✨ Professional Dashboard Design  
+✨ Clean Legal AI Interface  
+✨ Fast User Interaction  
+✨ Smooth Workflow Navigation  
+
+---
+
+# 🏗️ System Architecture
+
+```mermaid
+graph TD
+
+A[👤 User Query] --> B[💬 Streamlit Frontend]
+B --> C[⚡ FastAPI Backend]
+C --> D[🧠 LangChain RAG Pipeline]
+D --> E[📚 FAISS Vector Database]
+D --> F[🤗 HuggingFace Embeddings]
+E --> G[📄 Legal Documents]
+G --> H[✅ Citation-Based AI Response]
 ```
 
 ---
 
 # 🛠️ Technology Stack
 
-| Technology                 | Purpose                      |
-| -------------------------- | ---------------------------- |
-| **Python**                 | Core Programming Language    |
-| **FastAPI**                | Backend API Framework        |
-| **Streamlit**              | Frontend User Interface      |
-| **LangChain**              | RAG Pipeline & Orchestration |
-| **FAISS**                  | Vector Similarity Search     |
-| **HuggingFace Embeddings** | Text Embedding Model         |
-| **PyPDFLoader**            | PDF Parsing                  |
-| **Sentence Transformers**  | Semantic Embeddings          |
-| **GitHub**                 | Version Control              |
-| **Streamlit Cloud**        | Deployment                   |
+| Technology | Purpose |
+|------------|----------|
+| ⚡ FastAPI | Backend API Framework |
+| 🎨 Streamlit | Frontend User Interface |
+| 🧠 LangChain | RAG Workflow |
+| 📚 FAISS | Vector Similarity Database |
+| 🤗 HuggingFace | Embedding Generation |
+| 🐍 Python | Core Development |
+| 📄 PyPDFLoader | PDF Parsing |
+| ☁️ Streamlit Cloud | Deployment |
 
 ---
 
-# 📸 Project Screenshots
-
-## 🖥 Dashboard Interface
-
-<p align="center">
-  <img src="https://github.com/user-attachments/assets/5f69c0f5-6bd5-48ed-a746-d422346dd219" width="700"/>
-</p>
-
----
-
-## 📂 File Upload & Validation
-
-<p align="center">
-  <img src="YOUR_IMAGE_LINK_HERE" width="700"/>
-</p>
-
----
-
-## 🔐 Admin Panel & Test Cases
-
-<p align="center">
-  <img src="https://github.com/user-attachments/assets/5f69c0f5-6bd5-48ed-a746-d422346dd219" width="350"/>
-</p>
-
----
-
-## 💬 AI Chatbot Interaction
-
-<p align="center">
-  <img src="YOUR_IMAGE_LINK_HERE" width="700"/>
-</p>
-
----
-
-## 🕘 Chat History Logging
-
-<p align="center">
-  <img src="https://github.com/user-attachments/assets/102d8c0c-680d-4bfd-aecd-28659ae2b5a9" width="450"/>
-</p>
-
----
-
-# 🔍 Sample AI Response
-
-## Query:
-
-> *What is the difference between Theft and Robbery under IPC?*
-
-## Response:
-
-```text
-Theft (Section 378-379, IPC):
-- Dishonest taking of movable property without consent
-- No force or threat involved
-- Punishment: Up to 3 years imprisonment or fine or both
-- Bailable offence
-
-Robbery (Section 390-392, IPC):
-- Theft or extortion accompanied by force or threat
-- Involves violence, fear, or instant threat
-- Punishment: Rigorous imprisonment up to 10 years + fine
-- Non-bailable offence
-
-Key Difference:
-Robbery includes force or threat of hurt/death, while theft does not.
-```
-
----
-
-# 📂 Folder Structure
+# 📂 Project Structure
 
 ```bash
 Police-Rulebook-Assistant/
@@ -225,16 +292,16 @@ Police-Rulebook-Assistant/
 │
 ├── frontend/
 │   ├── app.py
-│   └── components/
+│   ├── components/
+│   └── chatbot/
 │
 ├── documents/
 │   ├── ipc_manual.pdf
 │   ├── sop_guidelines.pdf
-│   └── complaint_procedures.pdf
+│   └── citizen_procedures.pdf
 │
 ├── screenshots/
 ├── chat_history/
-├── tests/
 ├── LICENSE
 ├── README.md
 └── requirements.txt
@@ -244,45 +311,39 @@ Police-Rulebook-Assistant/
 
 # ⚙️ Installation & Setup
 
-# 📋 Prerequisites
-
-Ensure the following are installed:
-
-| Software | Version |
-| -------- | ------- |
-| Python   | 3.11+   |
-| Git      | Latest  |
-| pip      | Latest  |
-
----
-
-# 🚀 Installation Steps
-
-## 1️⃣ Clone the Repository
+# 1️⃣ Clone Repository
 
 ```bash
 git clone https://github.com/Barath-RK/police-rulebook-assistant-new.git
+```
 
+---
+
+# 2️⃣ Navigate to Project Folder
+
+```bash
 cd police-rulebook-assistant-new
 ```
 
 ---
 
-## 2️⃣ Create Virtual Environment
+# 3️⃣ Create Virtual Environment
 
 ```bash
 python -m venv venv
 ```
 
-### Activate Environment
+---
 
-#### Windows
+# 4️⃣ Activate Virtual Environment
+
+## Windows
 
 ```bash
 venv\Scripts\activate
 ```
 
-#### Linux / macOS
+## Linux / macOS
 
 ```bash
 source venv/bin/activate
@@ -290,7 +351,7 @@ source venv/bin/activate
 
 ---
 
-## 3️⃣ Install Dependencies
+# 5️⃣ Install Dependencies
 
 ```bash
 pip install -r requirements.txt
@@ -298,7 +359,7 @@ pip install -r requirements.txt
 
 ---
 
-## 4️⃣ Start FastAPI Backend
+# 6️⃣ Run Backend Server
 
 ```bash
 uvicorn main:app --reload
@@ -306,7 +367,7 @@ uvicorn main:app --reload
 
 ---
 
-## 5️⃣ Start Streamlit Frontend
+# 7️⃣ Run Streamlit Frontend
 
 ```bash
 streamlit run app.py
@@ -314,104 +375,78 @@ streamlit run app.py
 
 ---
 
-# 🌐 Deployment
+# 🚀 Deployment
 
-The application is deployed using **Streamlit Cloud**.
+The project is deployed using:
 
-### 🔗 Live URL
-
-👉 [https://police-rulebook-assistant.streamlit.app](https://police-rulebook-assistant.streamlit.app)
+- ☁️ Streamlit Cloud
+- ⚡ FastAPI Hosting
+- 🌐 GitHub Repository Integration
 
 ---
 
 # 🧪 Testing & Validation
 
-## ✔ Functional Testing
+The project includes complete validation workflows for:
 
-| Test Case            | Status   |
-| -------------------- | -------- |
-| PDF Upload           | ✅ Passed |
-| Document Parsing     | ✅ Passed |
-| Chunk Generation     | ✅ Passed |
-| Citation Retrieval   | ✅ Passed |
-| Semantic Search      | ✅ Passed |
-| Admin Authentication | ✅ Passed |
-| Chat History Logging | ✅ Passed |
-
----
-
-# 📈 Project Evaluation Coverage
-
-| Evaluation Component | Status            |
-| -------------------- | ----------------- |
-| Implementation       | ✅ Completed       |
-| Testing & Validation | ✅ Completed       |
-| Live Deployment      | ✅ Completed       |
-| GitHub Commits       | ✅ Regular Updates |
-| README Documentation | ✅ Completed       |
-| Viva Preparation     | ✅ Ready           |
+✅ PDF Upload Testing  
+✅ Document Parsing Validation  
+✅ Semantic Search Accuracy  
+✅ Citation Retrieval  
+✅ Chatbot Response Validation  
+✅ Admin Access Control  
+✅ Knowledge Base Refresh  
+✅ End-to-End Workflow Testing  
 
 ---
 
-# 🔒 Security Best Practices
+# 📋 Example AI Response
 
-✅ API keys hidden using environment variables
-✅ Admin authentication implemented
-✅ Sensitive credentials excluded from repository
-✅ Secure document handling process
-✅ Input validation enabled
+## 🔎 User Query
+
+> What is the difference between Theft and Robbery under IPC?
 
 ---
 
-# 📚 Official References
+## 🤖 AI Response
 
-| Resource       | Link                                                                             |
-| -------------- | -------------------------------------------------------------------------------- |
-| FastAPI Docs   | [https://fastapi.tiangolo.com/tutorial/](https://fastapi.tiangolo.com/tutorial/) |
-| LangChain Docs | [https://docs.langchain.com/](https://docs.langchain.com/)                       |
-| Streamlit Docs | [https://docs.streamlit.io/](https://docs.streamlit.io/)                         |
-| Chroma Docs    | [https://docs.trychroma.com/](https://docs.trychroma.com/)                       |
+```txt
+Theft (Section 378-379, IPC):
+- Dishonest taking of movable property without consent
+- No force or threat involved
+- Punishment: Up to 3 years imprisonment or fine or both
+- Bailable offence
 
----
+Robbery (Section 390-392, IPC):
+- Theft or extortion accompanied by force or threat
+- Involves violence or fear
+- Punishment: Rigorous imprisonment up to 10 years + fine
+- Non-bailable offence
 
-# 📅 3-Week Development Roadmap
-
-## ✅ Week 1
-
-* Knowledge base setup
-* PDF parsing
-* Basic chatbot interface
-
-## ✅ Week 2
-
-* Retrieval pipeline
-* Citation generation
-* Admin refresh workflow
-
-## ✅ Week 3
-
-* Chat history
-* Access control
-* UI improvements
-* Deployment & documentation
+Key Difference:
+Robbery includes force or threat, while theft does not.
+```
 
 ---
 
-# 🏆 Project Highlights
+# 📌 Future Enhancements
 
-⭐ Real-world Public Safety Use Case
-⭐ Practical RAG Architecture Implementation
-⭐ End-to-End AI Application Deployment
-⭐ Modern GenAI Stack Integration
-⭐ Legal & Procedural Document Intelligence
+- 🤖 Advanced LLM Integration
+- 🌍 Multi-Language Legal Support
+- 🎙️ Voice-Based Legal Queries
+- 📱 Mobile Application
+- 🧠 Advanced AI Memory
+- 📊 Analytics Dashboard
+- 🔒 Enhanced Security Layer
+- ☁️ Cloud Database Integration
 
 ---
 
-# 📜 License
+# 📄 License
 
 This project is licensed under the **MIT License**.
 
-```text
+```txt
 MIT License © 2026 Barath R K PDKV
 ```
 
@@ -421,20 +456,31 @@ MIT License © 2026 Barath R K PDKV
 
 Special thanks to:
 
-* FastAPI Documentation
-* LangChain Community
-* Streamlit Team
-* HuggingFace
-* FAISS Research Team
+- FastAPI Documentation
+- LangChain Community
+- Streamlit Team
+- HuggingFace
+- FAISS Research Team
+
+---
+
+# ⭐ Support
+
+If you found this project useful:
+
+⭐ Star the repository  
+🍴 Fork the project  
+📢 Share with others  
+💡 Contribute improvements  
 
 ---
 
 <div align="center">
 
-# 🚔 Police Rulebook Assistant
+# 🚔 THANK YOU FOR VISITING
 
-### *Empowering Public Safety with Generative AI*
+### ⚡ Police Rulebook Assistant — Empowering Public Safety with AI
 
-⭐ If you like this project, give it a star on GitHub ⭐
+<img src="https://capsule-render.vercel.app/api?type=waving&height=120&section=footer&color=0:000428,50:004e92,100:000428" width="100%" />
 
 </div>
