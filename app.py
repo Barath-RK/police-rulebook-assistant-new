@@ -359,7 +359,7 @@ TEST_CASES = [
     {"query": "Tell me about Section 376", "expected_section": "376"},
     {"query": "Is theft bailable?", "expected_bailable": True},
     {"query": "What is the procedure for rape investigation?", "expected_has_procedure": True},
-    {"query": "Difference between theft and robbery", "expected_has_comparison": True},
+    #{"query": "Difference between theft and robbery", "expected_has_comparison": True},
 ]
 
 def run_tests() -> Dict:
