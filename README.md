@@ -96,7 +96,8 @@ The primary objective of this project is to modernize legal document access usin
 # 🏠 Main Dashboard
 
 <p align="center">
-<img width="100%" src="YOUR_DASHBOARD_IMAGE" />
+<img width="1901" height="887" alt="1" src="https://github.com/user-attachments/assets/44f69ae9-93bc-4754-b364-38fe38a1a7eb" />
+
 </p>
 
 <p align="center">
@@ -108,7 +109,8 @@ The primary objective of this project is to modernize legal document access usin
 # 📂 File Upload & Document Validation
 
 <p align="center">
-<img width="90%" src="YOUR_UPLOAD_IMAGE" />
+  <img width="1912" height="662" alt="2" src="https://github.com/user-attachments/assets/a792b94e-21c7-414c-bc59-3a001f4802fa" />
+
 </p>
 
 <p align="center">
@@ -117,22 +119,13 @@ The primary objective of this project is to modernize legal document access usin
 
 ---
 
-# 🔐 Admin Panel & Management
 
-<p align="center">
-<img width="55%" src="https://github.com/user-attachments/assets/5f69c0f5-6bd5-48ed-a746-d422346dd219" />
-</p>
-
-<p align="center">
-🛡️ Secure Access • Admin Controls • Document Refresh Workflow
-</p>
-
----
 
 # 💬 AI Chatbot Interface
 
 <p align="center">
-<img width="90%" src="YOUR_CHATBOT_IMAGE" />
+<img width="1647" height="771" alt="4" src="https://github.com/user-attachments/assets/c6a414cb-694e-4f95-a5bf-b913e87b358d" />
+
 </p>
 
 <p align="center">
@@ -144,7 +137,8 @@ The primary objective of this project is to modernize legal document access usin
 # 🕘 Chat History Logging
 
 <p align="center">
-<img width="40%" src="https://github.com/user-attachments/assets/102d8c0c-680d-4bfd-aecd-28659ae2b5a9" />
+<img width="206" height="146" alt="5" src="https://github.com/user-attachments/assets/9f84d338-3deb-49a3-bd7d-bcf113965a0d" />
+
 </p>
 
 <p align="center">
