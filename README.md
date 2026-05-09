@@ -4,7 +4,7 @@
 
 **Project PRJ-005** | **Barath R K PDKV** | **411623149004** | **Department: Cyber**
 
-[![Streamlit App](https://img.shields.io/badge/Streamlit-Live_App-red?style=for-the-badge&logo=streamlit)](https://police-rulebook-assistant-new.streamlit.app)
+[![Streamlit App](https://img.shields.io/badge/Streamlit-Live_App-red?style=for-the-badge&logo=streamlit)](https://police-rulebook-assistant.streamlit.app)
 [![GitHub](https://img.shields.io/badge/GitHub-Repository-black?style=for-the-badge&logo=github)](https://github.com/Barath-RK/police-rulebook-assistant-new)
 [![MIT License](https://img.shields.io/badge/License-MIT-green?style=for-the-badge)](LICENSE)
 
@@ -40,10 +40,11 @@ A **RAG (Retrieval-Augmented Generation)** document assistant that searches SOPs
 | **HuggingFace Embeddings** | Text embeddings (all-MiniLM-L6-v2) |
 | **PyPDF** | PDF text extraction |
 
+---
 
 ## 🚀 Live Demo
 
-🔗 **Live Application:** - http://police-rulebook-assistant.streamlit.app/
+🔗 **Live Application:** [https://police-rulebook-assistant.streamlit.app](https://police-rulebook-assistant.streamlit.app)
 
 ---
 
@@ -61,6 +62,30 @@ A **RAG (Retrieval-Augmented Generation)** document assistant that searches SOPs
 ### Admin Panel
 ![Admin Panel](https://raw.githubusercontent.com/Barath-RK/police-rulebook-assistant-new/main/screenshots/admin.png)
 
+
+
 ---
 
-## 📁 Repository Structure
+## 🛠️ Setup & Installation Instructions
+
+### 📋 Prerequisites
+
+Before you begin, ensure you have the following installed:
+
+| Requirement | Version | Check Command |
+|-------------|---------|---------------|
+| **Python** | 3.11 or higher | `python --version` |
+| **Git** | Latest | `git --version` |
+| **pip** | Latest | `pip --version` |
+
+### 🚀 Installation Steps
+
+#### Step 1: Clone the Repository
+
+```bash
+# Clone the project from GitHub
+git clone https://github.com/Barath-RK/police-rulebook-assistant-new.git
+
+# Navigate into the project directory
+cd police-rulebook-assistant-new
+
