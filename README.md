@@ -40,33 +40,10 @@ A **RAG (Retrieval-Augmented Generation)** document assistant that searches SOPs
 | **HuggingFace Embeddings** | Text embeddings (all-MiniLM-L6-v2) |
 | **PyPDF** | PDF text extraction |
 
----
-
-## ✅ Features by Week
-
-### Week 1 (15/15 Marks)
-- ✅ Knowledge base creation using FAISS
-- ✅ PDF document upload and parsing
-- ✅ Text chunking (500 characters, 50 overlap)
-- ✅ Basic chat interface with history
-
-### Week 2 (15/15 Marks)
-- ✅ Semantic search retrieval
-- ✅ Citation-backed answers with source attribution
-- ✅ Admin refresh workflow
-- ✅ Answer relevance scoring
-
-### Week 3 (15/15 Marks)
-- ✅ Enhanced UI/UX with animations
-- ✅ Chat history logging
-- ✅ Access control with admin password
-- ✅ Professional glassmorphism theme
-
----
 
 ## 🚀 Live Demo
 
-🔗 **Live Application:** [https://police-rulebook-assistant-new.streamlit.app](https://police-rulebook-assistant-new.streamlit.app)
+🔗 **Live Application:** - http://police-rulebook-assistant.streamlit.app/
 
 ---
 
